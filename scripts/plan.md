@@ -5,15 +5,13 @@ TASKS:
 
 - [x] Publicar repo
 - [x] Script pequeño interacción Crossmint in Base (testnet o mainnet)
-- [ ] Script pequeño interacción Crossmint in Stellar (testnet o mainnet)
+- [x] Script pequeño interacción Crossmint in Stellar (testnet o mainnet)
 - [ ] Investigar y script mini POC Near Intents
 
-## Desarrollar un script de inteacción utilizando crossmint smart wallet
+## Desarrollar un script de inteacción utilizando near intents
 
-El objetivo de este paso es poder configurar y probar el ambiente de crossmint tanto en base como en stellar y utilizar sus smart wallets para llevar a cabo al menos una transacción nativa en cada red, puede ser un token transfer o alguna operación básica para revisar que efectivamente podemos firmar y enviar transacciones en cada una de las blockchains utilizando smart accounts.
+El objetivo actual es poder realizar una transacción desde base hacia stellar utilizando near intents
+Para para ello vamos a generar dos wallets, una en base y otra en stellar y luego agregar fondos de un token de prueba a la wallet de base,
+una vez tengamos los tokens en base vamos a lanzar un intent para transferir a stellar
 
-Para ello será necesario crear un archivo de config en la carpeta scripts que nos ayudará a mantener nuestra configuración centralizada y así será más fácil de modificar en el futuro y evitamos repetir líneas de código innecesariamente.
-
-En este archivo config se definirá un servidor de crossmint, por lo que es necesario también tener un archivo .env para almacenar las variables de ambiente necesarias para la ejecución de los scripts.
-
-También es importante aclarar que deberían ser dos scripts separados que nos permitan interactuar tanto en base como stellar individualmente.
+Este script debe ser configurable tanto para testnet como para mainnet en ambas chains y debe entregar durante su ejecución los logs necesarios para entender la etapa del prcoceso en la que se encuentra y mostrar una tabla comparativa al final mostrando los balances de ambas cuentas previo y posterior a la ejecución

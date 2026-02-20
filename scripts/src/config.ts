@@ -10,6 +10,8 @@ export const config = {
     : "https://www.crossmint.com",
   chain: isStaging ? "base-sepolia" : "base",
   token: isStaging ? "usdxm" : "usdc",
+  stellarChain: isStaging ? "stellar" : "stellar",
+  stellarToken: "usdxm",
   walletEmail: process.env.CROSSMINT_WALLET_EMAIL ?? "",
   isStaging,
 };

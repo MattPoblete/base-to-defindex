@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "base-wallet": "tsx src/base-wallet.ts"
+    "base-wallet": "tsx src/base-wallet.ts",
+    "stellar-wallet": "tsx src/stellar-wallet.ts"
   },
   "dependencies": {
     "@crossmint/wallets-sdk": "^0.19.0",
