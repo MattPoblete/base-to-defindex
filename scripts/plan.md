@@ -4,7 +4,7 @@
 TASKS:
 
 - [x] Publicar repo
-- [ ] Script pequeño interacción Crossmint in Base (testnet o mainnet)
+- [x] Script pequeño interacción Crossmint in Base (testnet o mainnet)
 - [ ] Script pequeño interacción Crossmint in Stellar (testnet o mainnet)
 - [ ] Investigar y script mini POC Near Intents
 
