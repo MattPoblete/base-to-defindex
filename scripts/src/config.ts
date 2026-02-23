@@ -24,6 +24,8 @@ export const config = {
   nearIntentsOriginAsset: isStaging
     ? ""
     : "nep141:base-0x833589fcd6edb6e08f4c7c32d4f71b54bda02913.omft.near",
+  clientApiKey: process.env.CROSSMINT_CLIENT_API_KEY ?? "",
+  signerType: (process.env.CROSSMINT_SIGNER_TYPE ?? "api-key") as "api-key" | "email",
   evmPrivateKey: process.env.EVM_PRIVATE_KEY ?? "",
   baseRpcUrl: process.env.BASE_RPC_URL ?? "https://mainnet.base.org",
   sorobanRpcUrl:
