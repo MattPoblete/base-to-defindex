@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "base-wallet": "tsx src/base-wallet.ts",
-    "stellar-wallet": "tsx src/stellar-wallet.ts"
+    "stellar-wallet": "tsx src/stellar-wallet.ts",
+    "near-intents": "tsx src/near-intents.ts",
+    "allbridge-bridge": "tsx src/allbridge-bridge.ts"
   },
   "dependencies": {
+    "@allbridge/bridge-core-sdk": "^3.29.1",
     "@crossmint/wallets-sdk": "^0.19.0",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.0"
   },
   "devDependencies": {
     "@types/node": "^25.3.0",
