@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
 import {
   useAuth,
   useWallet,
@@ -13,17 +20,59 @@ import { CrossmintWallets, type Wallet } from "@crossmint/wallets-sdk";
 
 type WalletStatus = "not-loaded" | "loading" | "loaded" | "error";
 
-export function useCrossmintWallets() {
-  const { login, logout, user, status: authStatus } = useAuth();
-  const { crossmint } = useCrossmint();
-  // Stellar wallet comes from createOnLogin in the provider
-  const { wallet: stellarRawWallet, status: stellarProviderStatus } = useWallet();
+interface CrossmintWalletsState {
+  // Auth
+  login: () => void;
+  logout: () => void;
+  user: { email?: string } | undefined;
+  isAuthenticated: boolean;
+  authStatus: string;
 
-  // Base wallet is created programmatically via CrossmintWallets SDK
-  const [baseWallet, setBaseWallet] = useState<Wallet<Chain> | undefined>(undefined);
-  const [baseStatus, setBaseStatus] = useState<WalletStatus>("not-loaded");
+  // Stellar
+  stellarWallet: Wallet<Chain> | undefined;
+  stellarAddress: string | undefined;
+  stellarReady: boolean;
+  stellarStatus: WalletStatus;
+  stellarBalances: Balances | null;
+  getStellarWallet: () => StellarWallet | undefined;
+
+  // Base
+  baseWallet: Wallet<Chain> | undefined;
+  baseAddress: string | undefined;
+  baseReady: boolean;
+  baseStatus: WalletStatus;
+  baseBalances: Balances | null;
 
   // Balances
+  fetchBalances: () => Promise<void>;
+  balancesLoading: boolean;
+
+  // Overall
+  allWalletsReady: boolean;
+}
+
+const CrossmintWalletsContext = createContext<CrossmintWalletsState | null>(
+  null
+);
+
+export function CrossmintWalletsProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const { login, logout, user, status: authStatus } = useAuth();
+  const { crossmint } = useCrossmint();
+  const {
+    wallet: stellarRawWallet,
+    status: stellarProviderStatus,
+    onAuthRequired,
+  } = useWallet();
+
+  const [baseWallet, setBaseWallet] = useState<Wallet<Chain> | undefined>(
+    undefined
+  );
+  const [baseStatus, setBaseStatus] = useState<WalletStatus>("not-loaded");
+
   const [stellarBalances, setStellarBalances] = useState<Balances | null>(null);
   const [baseBalances, setBaseBalances] = useState<Balances | null>(null);
   const [balancesLoading, setBalancesLoading] = useState(false);
@@ -32,14 +81,15 @@ export function useCrossmintWallets() {
     let cancelled = false;
 
     async function createBaseWallet() {
-      if (!crossmint || !user?.email || stellarProviderStatus !== "loaded") return;
+      if (!crossmint || !user?.email || stellarProviderStatus !== "loaded")
+        return;
 
       try {
         setBaseStatus("loading");
         const wallets = CrossmintWallets.from(crossmint);
         const wallet = await wallets.getOrCreateWallet({
-          chain: "base-sepolia", // TODO: "base" for mainnet
-          signer: { type: "email", email: user.email },
+          chain: "base",
+          signer: { type: "email", email: user.email, onAuthRequired },
         });
         if (!cancelled) {
           setBaseWallet(wallet);
@@ -58,7 +108,7 @@ export function useCrossmintWallets() {
     return () => {
       cancelled = true;
     };
-  }, [crossmint, user?.email, stellarProviderStatus]);
+  }, [crossmint, user?.email, stellarProviderStatus, onAuthRequired]);
 
   const fetchBalances = useCallback(async () => {
     setBalancesLoading(true);
@@ -81,14 +131,12 @@ export function useCrossmintWallets() {
     }
   }, [stellarRawWallet, baseWallet]);
 
-  // Auto-fetch balances when both wallets are ready
   useEffect(() => {
     if (stellarRawWallet && baseWallet) {
       fetchBalances();
     }
   }, [stellarRawWallet, baseWallet, fetchBalances]);
 
-  // Derive Stellar wallet status from provider status
   const stellarStatus: WalletStatus =
     stellarProviderStatus === "loaded"
       ? "loaded"
@@ -100,36 +148,46 @@ export function useCrossmintWallets() {
 
   const allReady = stellarStatus === "loaded" && baseStatus === "loaded";
 
-  return {
-    // Auth
+  const value: CrossmintWalletsState = {
     login,
     logout,
     user,
     isAuthenticated: authStatus === "logged-in",
     authStatus,
 
-    // Stellar wallet (auto-created via createOnLogin)
     stellarWallet: stellarRawWallet,
     stellarAddress: stellarRawWallet?.address,
     stellarReady: stellarStatus === "loaded",
     stellarStatus,
     stellarBalances,
-    // Helper to get typed StellarWallet for sendTransaction
     getStellarWallet: () =>
       stellarRawWallet ? StellarWallet.from(stellarRawWallet) : undefined,
 
-    // Base wallet (created via CrossmintWallets SDK)
     baseWallet,
     baseAddress: baseWallet?.address,
     baseReady: baseStatus === "loaded",
     baseStatus,
     baseBalances,
 
-    // Balances
     fetchBalances,
     balancesLoading,
 
-    // Overall
     allWalletsReady: allReady,
   };
+
+  return (
+    <CrossmintWalletsContext.Provider value={value}>
+      {children}
+    </CrossmintWalletsContext.Provider>
+  );
+}
+
+export function useCrossmintWallets(): CrossmintWalletsState {
+  const context = useContext(CrossmintWalletsContext);
+  if (!context) {
+    throw new Error(
+      "useCrossmintWallets must be used within CrossmintWalletsProvider"
+    );
+  }
+  return context;
 }

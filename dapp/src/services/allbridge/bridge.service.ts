@@ -23,6 +23,10 @@ function getSDK(): AllbridgeCoreSdk {
   return sdkInstance;
 }
 
+export function refreshSdk() {
+  sdkInstance = null;
+}
+
 export async function getTokens() {
   const sdk = getSDK();
   return sdk.tokens();

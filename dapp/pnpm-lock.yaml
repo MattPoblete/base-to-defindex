@@ -17,6 +17,9 @@ importers:
       '@crossmint/wallets-sdk':
         specifier: ^0.19.0
         version: 0.19.0(@solana/web3.js@1.98.4(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.1.0)(typescript@5.9.3)(utf-8-validate@5.0.10)(zod@3.22.4)
+      '@stellar/stellar-sdk':
+        specifier: ^14.5.0
+        version: 14.5.0
       '@tanstack/react-query':
         specifier: ^5.90.21
         version: 5.90.21(react@19.2.3)

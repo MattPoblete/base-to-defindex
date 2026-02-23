@@ -6,6 +6,7 @@ import {
   CrossmintAuthProvider,
   CrossmintWalletProvider,
 } from "@crossmint/client-sdk-react-ui";
+import { CrossmintWalletsProvider } from "@/hooks/useCrossmintWallets";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -17,7 +18,7 @@ export function Providers({ children }: { children: ReactNode }) {
             signer: { type: "email" },
           }}
         >
-          {children}
+          <CrossmintWalletsProvider>{children}</CrossmintWalletsProvider>
         </CrossmintWalletProvider>
       </CrossmintAuthProvider>
     </CrossmintProvider>

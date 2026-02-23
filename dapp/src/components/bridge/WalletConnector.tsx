@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { useCrossmintWallets } from "@/hooks/useCrossmintWallets";
 import type { Balances } from "@crossmint/client-sdk-react-ui";
-import { FundWalletButton } from "./FundWalletButton";
 
 function shortenAddress(address: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -117,11 +116,9 @@ export function WalletConnector() {
     user,
     isAuthenticated,
     authStatus,
-    stellarWallet,
     stellarAddress,
     stellarStatus,
     stellarBalances,
-    baseWallet,
     baseAddress,
     baseStatus,
     baseBalances,
@@ -189,13 +186,6 @@ export function WalletConnector() {
           balancesLoading={balancesLoading}
         />
       </div>
-
-      {allWalletsReady && (
-        <div className="mt-3 flex gap-2">
-          <FundWalletButton wallet={baseWallet} label="Fund Base" onFunded={fetchBalances} />
-          <FundWalletButton wallet={stellarWallet} label="Fund Stellar" onFunded={fetchBalances} />
-        </div>
-      )}
 
       {allWalletsReady && (
         <div className="mt-3 flex items-center justify-between">

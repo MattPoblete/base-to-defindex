@@ -6,7 +6,8 @@ import type { BridgeQuote } from "@/services/allbridge/types";
 
 export function useBridgeFeeCalculator(
   amount: string,
-  token: "USDC" | "USDT" = "USDC"
+  token: "USDC" | "USDT" = "USDC",
+  refreshKey: number = 0
 ) {
   const [quote, setQuote] = useState<BridgeQuote | null>(null);
   const [loading, setLoading] = useState(false);
@@ -38,7 +39,7 @@ export function useBridgeFeeCalculator(
     } finally {
       setLoading(false);
     }
-  }, [amount, token]);
+  }, [amount, token, refreshKey]);
 
   // Auto-calculate with debounce
   useEffect(() => {
@@ -50,7 +51,7 @@ export function useBridgeFeeCalculator(
 
     const timeout = setTimeout(calculate, 500);
     return () => clearTimeout(timeout);
-  }, [amount, calculate]);
+  }, [amount, calculate, refreshKey]);
 
   return {
     quote,

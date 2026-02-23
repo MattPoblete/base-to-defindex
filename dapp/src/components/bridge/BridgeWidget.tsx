@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { refreshSdk } from "@/services/allbridge/bridge.service";
 import { useCrossmintWallets } from "@/hooks/useCrossmintWallets";
 import { useBridgeFeeCalculator } from "@/hooks/useBridgeFeeCalculator";
 import { useBridgeTransaction } from "@/hooks/useBridgeTransaction";
@@ -22,11 +23,14 @@ export function BridgeWidget() {
   } = useCrossmintWallets();
   const [amount, setAmount] = useState("");
   const [token, setToken] = useState<SupportedToken>("USDC");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const { quote, amountToReceive, fee, estimatedTime, loading, error } =
-    useBridgeFeeCalculator(amount, token);
+    useBridgeFeeCalculator(amount, token, refreshKey);
 
   const handleBridgeSuccess = useCallback(() => {
+    refreshSdk();
+    setRefreshKey((k) => k + 1);
     fetchBalances();
   }, [fetchBalances]);
 
@@ -120,6 +124,8 @@ export function BridgeWidget() {
           status={bridge.status}
           txHash={bridge.txHash}
           error={bridge.error}
+          progress={bridge.progress}
+          stellarTxId={bridge.stellarTxId}
           onReset={handleReset}
         />
       )}
