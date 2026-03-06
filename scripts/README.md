@@ -1,71 +1,65 @@
-# Scripts — Crossmint Smart Wallet PoC
+# Bridge & Wallet Scripts
 
-Scripts independientes para interactuar con Crossmint Smart Wallets en Base y Stellar, fuera del entorno de la dapp Next.js.
+Este directorio contiene herramientas CLI para gestionar wallets e interactuar con protocolos de bridge (**Sodax** y **Allbridge**) de forma programática.
 
-El objetivo es validar que podemos crear wallets, firmar y enviar transacciones en cada blockchain usando las smart accounts de Crossmint.
+## 🚀 Scripts de Bridge (Sodax)
 
-## Scripts disponibles
+Recomendamos usar **Sodax** para mover fondos de Base a Stellar debido a su integración con solvers que optimizan la velocidad y el costo.
 
-| Script | Descripción |
+| Comando | Descripción |
 |---|---|
-| `src/base-wallet.ts` | Crea una wallet en Base, consulta balances, fondea (staging) y transfiere tokens |
+| `npm run sodax-bridge -- <ADDR>` | Realiza un **Swap + Bridge** usando un solver. (Recomendado) |
+| `npm run sodax-bridge-pure -- <ADDR>` | Realiza un **Bridge 1:1** directo sin intercambio. |
+| `npm run sodax-status -- <HASH>` | Monitorea el estado de una transacción y decodifica el payload. |
 
-## Requisitos
-
-- Node.js >= 18
-- Una API key server-side de [Crossmint Console](https://www.crossmint.com/console)
-
-## Configuración
-
-1. Instalar dependencias:
-
+### Ejemplo de uso
 ```bash
-npm install
+# Ejecutar un bridge hacia una dirección de Stellar
+npm run sodax-bridge -- GDNNTSIFUR7DE7D3AZCA6IICGEXBRVZ6UXGEURPEAH3VWOBF2RQE3U44
+
+# Consultar el estado de una transacción enviada
+npm run sodax-status -- 0x33f2af36bc382145e803c95102b6973505a908590e7239b7d0022d80f5ff7792
 ```
 
-2. Crear el archivo `.env` a partir del ejemplo:
+---
 
-```bash
-cp .env.example .env
-```
+## 👛 Gestión de Wallets
 
-3. Completar las variables en `.env`:
+Scripts para validar la creación y operación de Smart Wallets vía **Crossmint**.
 
-```env
-# "staging" para testnet, "production" para mainnet
-CROSSMINT_ENV=staging
+| Comando | Descripción |
+|---|---|
+| `npm run base-wallet` | Gestiona Smart Wallets en **Base** (EVM). |
+| `npm run stellar-wallet` | Gestiona Smart Wallets en **Stellar** (Soroban). |
 
-# API key server-side desde la consola de Crossmint
-CROSSMINT_SERVER_API_KEY=sk_staging_...
+---
 
-# Email asociado a la wallet
-CROSSMINT_WALLET_EMAIL=tu-email@ejemplo.com
-```
+## 🛠️ Configuración
 
-### Staging vs Production
+1. **Instalar dependencias:**
+   ```bash
+   npm install
+   ```
 
-| | Staging | Production |
-|---|---|---|
-| Chain | `base-sepolia` | `base` |
-| Token | `usdxm` | `usdc` |
-| Funding | Automático vía `stagingFund()` | Manual |
-| Explorer | sepolia.basescan.org | basescan.org |
+2. **Configurar variables de entorno:**
+   Copia el archivo `.env.example` a `.env` y completa las variables necesarias:
+   ```env
+   EVM_PRIVATE_KEY=...
+   BASE_RPC_URL=https://mainnet.base.org
+   CROSSMINT_SERVER_API_KEY=...
+   CROSSMINT_WALLET_EMAIL=...
+   ```
 
-## Ejecución
+## 🏗️ Otros Scripts (Legacy/PoC)
 
-```bash
-npx tsx src/base-wallet.ts
-```
+- `npm run allbridge-bridge`: Pruebas iniciales con Allbridge Core SDK.
+- `npm run crossmint-bridge`: Pruebas de bridge usando firmas delegadas de Crossmint.
+- `npm run near-intents`: Integración experimental con Defuse/Near Intents.
 
-El script realiza los siguientes pasos:
+---
 
-1. Crea o recupera la wallet asociada al email configurado
-2. Consulta e imprime los balances actuales
-3. Fondea la wallet con 10 USDXM (solo en staging)
-4. Transfiere 1 token a una dirección de prueba
-5. Imprime el hash de la transacción y el link al explorer
+## 🔍 Verificación
 
-## Verificación
-
-- **Staging:** verificar la transacción en https://sepolia.basescan.org con el tx hash impreso
-- **Production:** verificar en https://basescan.org
+- **Base Explorer:** [Basescan](https://basescan.org)
+- **Stellar Explorer:** [Stellar.expert](https://stellar.expert)
+- **Sodax Status:** Puedes usar el script `sodax-status` para obtener detalles técnicos decodificados de cualquier intent.
