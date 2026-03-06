@@ -4,10 +4,7 @@ import {
   type SolverIntentQuoteRequest,
   type SolverIntentQuoteResponse,
   type CreateIntentParams,
-  type SolverIntentStatusRequest,
-  type SolverIntentStatusResponse,
   type Result,
-  type SolverErrorResponse,
   type IntentError,
   type Intent,
   type SolverExecutionResponse,
@@ -17,7 +14,6 @@ import {
   STELLAR_MAINNET_CHAIN_ID,
   SolverIntentStatusCode
 } from "@sodax/sdk";
-import { EvmWalletProvider } from "@sodax/wallet-sdk-core";
 import { config } from "./config.js";
 import { ethers } from "ethers";
 import { 
@@ -94,12 +90,12 @@ async function performSwap(
   const [solverResponse, _intent, deliveryInfo] = swapResult.value;
   
   console.log(`\n✅ Swap Execution Step Finished!`);
-  console.log(`   Base Tx Hash:    ${(deliveryInfo as any).tx_hash}`);
+  console.log(`   Base Tx Hash:    ${deliveryInfo.srcTxHash}`);
   console.log(`   Dest Intent Hash: ${solverResponse.intent_hash || 'N/A'}`);
   
   return {
-    baseTxHash: (deliveryInfo as any).tx_hash as string,
-    statusHash: (solverResponse.intent_hash || (deliveryInfo as any).tx_hash) as string
+    baseTxHash: deliveryInfo.srcTxHash as string,
+    statusHash: (solverResponse.intent_hash || deliveryInfo.srcTxHash) as string
   };
 }
 
