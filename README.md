@@ -2,18 +2,18 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A cross-chain bridge solution to move assets (primarily USDC) from **Base (Coinbase L2)** to **Stellar/Soroban**, integrated with **DeFindex** vaults. This project leverages **Allbridge Core SDK** for liquidity and **Crossmint** for seamless smart wallet management via Account Abstraction.
+A cross-chain bridge solution to move assets (primarily USDC) from **Base (Coinbase L2)** to **Stellar/Soroban**, integrated with **DeFindex** vaults. This project leverages **Allbridge Core SDK** and **Sodax Solver** for liquidity, and **Crossmint** for seamless smart wallet management via Account Abstraction.
 
 ## 🚀 Overview
 
 This repository contains both a user-facing web application and a suite of developer tools for cross-chain operations:
 
 - **`dapp/`**: A modern Next.js 15 frontend providing a seamless bridging experience.
-- **`scripts/`**: TypeScript-based CLI tools and PoCs for wallet management and bridge testing.
+- **`scripts/`**: A collection of TypeScript-based CLI tools for wallet management, bridge testing, and transaction monitoring.
 
 ## 🏗️ Architecture
 
-- **Bridging Protocol**: [Allbridge Core](https://allbridge.io/)
+- **Bridging Protocols**: [Allbridge Core](https://allbridge.io/), [Sodax Solver](https://sodax.com/)
 - **Wallet Infrastructure**: [Crossmint Smart Wallets](https://www.crossmint.com/)
 - **Source Network**: Base (EVM)
 - **Destination Network**: Stellar (Soroban)
@@ -51,6 +51,34 @@ This repository contains both a user-facing web application and a suite of devel
    cp .env.example .env
    # Configure your variables in .env
    ```
+
+## ⌨️ Running Bridge Scripts
+
+The `scripts/` directory contains tools for interacting with the bridge protocols via CLI.
+
+### Sodax Bridge (Recommended)
+- **Sodax Solver (Swap + Bridge)**: Recommended for most cases as it optimizes for speed using solvers.
+  ```bash
+  npm run sodax-bridge -- <STELLAR_RECIPIENT_ADDRESS>
+  ```
+- **Sodax Pure Bridge**: For direct 1:1 asset bridging without solver swaps.
+  ```bash
+  npm run sodax-bridge-pure -- <STELLAR_RECIPIENT_ADDRESS>
+  ```
+- **Status Checker**: Monitor any Sodax transaction using its source hash.
+  ```bash
+  npm run sodax-status -- <SOURCE_TX_HASH>
+  ```
+
+### Other Protocols
+- **Allbridge Core SDK**: Executes the bridge flow using Allbridge.
+  ```bash
+  npm run allbridge-bridge -- <STELLAR_RECIPIENT_ADDRESS>
+  ```
+- **Near Intents (Defuse)**: Bridge based on the Defuse protocol.
+  ```bash
+  npm run near-intents -- <STELLAR_RECIPIENT_ADDRESS>
+  ```
 
 ## 📜 Documentation
 
