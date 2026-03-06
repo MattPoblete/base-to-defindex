@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A cross-chain bridge solution to move assets (primarily USDC) from **Base (Base L2)** to **Stellar/Soroban**, integrated with **DeFindex** vaults. This project primarily leverages **Sodax Solver** for liquidity and cross-chain intents, and **Crossmint** for seamless smart wallet management via Account Abstraction.
+A cross-chain bridge solution to move assets (primarily USDC) from **Base (Base L2)** to **Stellar/Soroban**, integrated with **DeFindex** vaults. This project leverages on diferent modules for cross-chain intents or bridge, and **Crossmint** for seamless smart wallet management via Account Abstraction.
 
 ## 🚀 Overview
 
@@ -33,12 +33,14 @@ This repository contains both a user-facing web application and a suite of devel
 ### Setup
 
 1. **Clone the repository:**
+
    ```bash
    git clone <repository-url>
    cd base-to-defindex
    ```
 
 2. **Dapp (Web Interface):**
+
    ```bash
    cd dapp
    pnpm install
@@ -48,6 +50,7 @@ This repository contains both a user-facing web application and a suite of devel
    ```
 
 3. **Scripts (CLI Tools):**
+
    ```bash
    cd scripts
    npm install
@@ -60,25 +63,35 @@ This repository contains both a user-facing web application and a suite of devel
 The `scripts/` directory contains tools for interacting with the bridge protocols and wallets.
 
 ### Sodax Bridge (Primary)
+
 - **Sodax Solver (Swap + Bridge)**: Recommended for most cases as it optimizes for speed using solvers.
+
   ```bash
   npm run sodax-bridge -- <STELLAR_RECIPIENT_ADDRESS>
   ```
+
 - **Sodax Pure Bridge**: For direct 1:1 asset bridging without solver swaps.
+
   ```bash
   npm run sodax-bridge-pure -- <STELLAR_RECIPIENT_ADDRESS>
   ```
+
 - **Status Checker**: Monitor any Sodax transaction using its source hash.
+
   ```bash
   npm run sodax-status -- <SOURCE_TX_HASH>
   ```
 
 ### Other Tools
+
 - **Near Intents (Defuse)**: Bridge based on the Defuse protocol.
+
   ```bash
   npm run near-intents -- <STELLAR_RECIPIENT_ADDRESS>
   ```
+
 - **Allbridge Core SDK**: Executes the bridge flow using Allbridge.
+
   ```bash
   npm run allbridge-bridge -- <STELLAR_RECIPIENT_ADDRESS>
   ```
