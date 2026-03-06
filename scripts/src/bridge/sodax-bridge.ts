@@ -4,7 +4,10 @@ import {
   type SolverIntentQuoteRequest,
   type SolverIntentQuoteResponse,
   type CreateIntentParams,
+  type SolverIntentStatusRequest,
+  type SolverIntentStatusResponse,
   type Result,
+  type SolverErrorResponse,
   type IntentError,
   type Intent,
   type SolverExecutionResponse,
@@ -14,7 +17,8 @@ import {
   STELLAR_MAINNET_CHAIN_ID,
   SolverIntentStatusCode
 } from "@sodax/sdk";
-import { config } from "./config.js";
+import { EvmWalletProvider } from "@sodax/wallet-sdk-core";
+import { config } from "../shared/config.js";
 import { ethers } from "ethers";
 import { 
   initializeSodax, 
@@ -24,7 +28,7 @@ import {
   sleep, 
   bigintReplacer,
   handleAllowance
-} from "./sodax.js";
+} from "../shared/sodax.js";
 
 // ── Core Functions ──────────────────────────────────────────────────────────
 
@@ -73,7 +77,7 @@ async function performSwap(
         console.error("   Reason: Transaction was sent but failed to be submitted to Relayer.");
         if (data && (data as any).tx_hash) console.error(`   Base Tx Hash: ${(data as any).tx_hash}`);
         break;
-      case "RELAY_TIMEOUT":
+      case "WAIT_UNTIL_INTENT_EXECUTED_FAILED":
         console.error("   Reason: Relayer timed out waiting for hub execution.");
         break;
       case "POST_EXECUTION_FAILED":
@@ -90,12 +94,12 @@ async function performSwap(
   const [solverResponse, _intent, deliveryInfo] = swapResult.value;
   
   console.log(`\n✅ Swap Execution Step Finished!`);
-  console.log(`   Base Tx Hash:    ${deliveryInfo.srcTxHash}`);
+  console.log(`   Base Tx Hash:    ${(deliveryInfo as any).tx_hash}`);
   console.log(`   Dest Intent Hash: ${solverResponse.intent_hash || 'N/A'}`);
   
   return {
-    baseTxHash: deliveryInfo.srcTxHash as string,
-    statusHash: (solverResponse.intent_hash || deliveryInfo.srcTxHash) as string
+    baseTxHash: (deliveryInfo as any).tx_hash as string,
+    statusHash: (solverResponse.intent_hash || (deliveryInfo as any).tx_hash) as string
   };
 }
 
@@ -145,7 +149,7 @@ async function pollStatus(sodax: Sodax, txHash: string): Promise<void> {
 async function main() {
   const stellarRecipient = process.argv[2];
   if (!stellarRecipient) {
-    console.error("Usage: npx tsx src/sodax-bridge.ts <STELLAR_ADDRESS>");
+    console.error("Usage: npx tsx src/bridge/sodax-bridge.ts <STELLAR_ADDRESS>");
     process.exit(1);
   }
 

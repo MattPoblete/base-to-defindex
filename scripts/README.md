@@ -1,65 +1,77 @@
 # Bridge & Wallet Scripts
 
-Este directorio contiene herramientas CLI para gestionar wallets e interactuar con protocolos de bridge (**Sodax** y **Allbridge**) de forma programática.
+This directory contains CLI tools for managing wallets and interacting with various bridge protocols programmatically.
 
-## 🚀 Scripts de Bridge (Sodax)
+## 🛠️ Prerequisites & Setup
 
-Recomendamos usar **Sodax** para mover fondos de Base a Stellar debido a su integración con solvers que optimizan la velocidad y el costo.
+1. **Install dependencies:**
 
-| Comando | Descripción |
-|---|---|
-| `npm run sodax-bridge -- <ADDR>` | Realiza un **Swap + Bridge** usando un solver. (Recomendado) |
-| `npm run sodax-bridge-pure -- <ADDR>` | Realiza un **Bridge 1:1** directo sin intercambio. |
-| `npm run sodax-status -- <HASH>` | Monitorea el estado de una transacción y decodifica el payload. |
-
-### Ejemplo de uso
-```bash
-# Ejecutar un bridge hacia una dirección de Stellar
-npm run sodax-bridge -- GDNNTSIFUR7DE7D3AZCA6IICGEXBRVZ6UXGEURPEAH3VWOBF2RQE3U44
-
-# Consultar el estado de una transacción enviada
-npm run sodax-status -- 0x33f2af36bc382145e803c95102b6973505a908590e7239b7d0022d80f5ff7792
-```
-
----
-
-## 👛 Gestión de Wallets
-
-Scripts para validar la creación y operación de Smart Wallets vía **Crossmint**.
-
-| Comando | Descripción |
-|---|---|
-| `npm run base-wallet` | Gestiona Smart Wallets en **Base** (EVM). |
-| `npm run stellar-wallet` | Gestiona Smart Wallets en **Stellar** (Soroban). |
-
----
-
-## 🛠️ Configuración
-
-1. **Instalar dependencias:**
    ```bash
    npm install
    ```
 
-2. **Configurar variables de entorno:**
-   Copia el archivo `.env.example` a `.env` y completa las variables necesarias:
-   ```env
-   EVM_PRIVATE_KEY=...
-   BASE_RPC_URL=https://mainnet.base.org
-   CROSSMINT_SERVER_API_KEY=...
-   CROSSMINT_WALLET_EMAIL=...
-   ```
-
-## 🏗️ Otros Scripts (Legacy/PoC)
-
-- `npm run allbridge-bridge`: Pruebas iniciales con Allbridge Core SDK.
-- `npm run crossmint-bridge`: Pruebas de bridge usando firmas delegadas de Crossmint.
-- `npm run near-intents`: Integración experimental con Defuse/Near Intents.
+2. **Environment Variables (.env):**
+   Configure the required variables to operate with the different protocols:
+   - `EVM_PRIVATE_KEY`: Private key for the Base (EVM) wallet.
+   - `BASE_RPC_URL`: RPC node URL for Base.
+   - `CROSSMINT_SERVER_API_KEY`: API Key for Smart Wallet management.
+   - `NEAR_INTENTS_JWT`: JWT token for the Near Intents/Defuse protocol.
 
 ---
 
-## 🔍 Verificación
+## 🚀 Available Bridge Protocols
 
-- **Base Explorer:** [Basescan](https://basescan.org)
-- **Stellar Explorer:** [Stellar.expert](https://stellar.expert)
-- **Sodax Status:** Puedes usar el script `sodax-status` para obtener detalles técnicos decodificados de cualquier intent.
+We have integrated multiple protocols to ensure redundancy and efficiency in cross-chain asset movement.
+
+### 1. Sodax Solver
+
+An intent-based protocol using solvers to optimize transaction speed and cost.
+
+| Command | Purpose | Status |
+| --- | --- | --- |
+| `npm run sodax-bridge -- <ADDR>` | **Solver Flow**: Automated Swap + Bridge. | 🚧 Recurrent Status 2 |
+| `npm run sodax-bridge-pure -- <ADDR>` | **Direct Flow**: 1:1 Bridge without swaps. | 🚧 Recurrent Status 2 |
+| `npm run sodax-status -- <HASH>` | **Monitoring**: Debugging and payload decoding. | ✅ Operational |
+
+### 2. Allbridge Core
+
+Direct integration with Allbridge Core for liquidity transfers between EVM and Stellar.
+
+| Command | Purpose | Status |
+| --- | --- | --- |
+| `npm run allbridge-bridge` | Executes the full bridge flow using Allbridge SDK. | ⚠️ Operational: not supporting C addresses |
+
+### 3. Near Intents (Defuse)
+
+Cross-chain intent messaging protocol.
+
+| Command | Purpose | Status |
+| --- | --- | --- |
+| `npm run near-intents` | Bridge based on the Defuse/Near Intents protocol. | ⚠️ Operational: not supporting C addresses |
+
+---
+
+## 🛡️ Modular Bridge (Crossmint)
+
+This script implements a modular architecture designed to swap the underlying bridge protocol while maintaining the same wallet infrastructure.
+
+| Command | Purpose | Status |
+| --- | --- | --- |
+| `npm run crossmint-bridge` | Crossmint-orchestrated bridge with support for swappable modules. | 🧪 Experimental: investigation in progress |
+
+---
+
+## 👛 Wallet Management (Crossmint)
+
+| Command | Purpose | Status |
+| --- | --- | --- |
+| `npm run base-wallet` | Manage Smart Wallets on **Base** (EVM). | ✅ Stable |
+| `npm run stellar-wallet` | Manage Smart Wallets on **Stellar** (Soroban). | ✅ Stable |
+
+---
+
+## 🔍 Technical Debugging Notes (Sodax)
+
+- **Status 2 (STARTED_NOT_FINISHED):** The transaction is on the Hub (Sonic) waiting for final execution by the solver.
+- **Error -999:** Generic API error; please double-check token parameters and indexing.
+- **Payload Decoding:** `sodax-status` automatically strips the function selector for a clean ABI decoding of the intent.

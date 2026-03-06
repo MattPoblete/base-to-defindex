@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "base-wallet": "tsx src/base-wallet.ts",
-    "stellar-wallet": "tsx src/stellar-wallet.ts",
-    "near-intents": "tsx src/near-intents.ts",
-    "allbridge-bridge": "tsx src/allbridge-bridge.ts",
-    "crossmint-bridge": "tsx src/crossmint-bridge.ts",
-    "sodax-bridge": "tsx src/sodax-bridge.ts",
-    "sodax-bridge-pure": "tsx src/sodax-bridge-pure.ts",
-    "sodax-status": "tsx src/sodax-status.ts"
+    "base-wallet": "tsx src/wallets/base-wallet.ts",
+    "stellar-wallet": "tsx src/wallets/stellar-wallet.ts",
+    "near-intents": "tsx src/bridge/near-intents.ts",
+    "allbridge-bridge": "tsx src/bridge/allbridge-bridge.ts",
+    "crossmint-bridge": "tsx src/bridge/crossmint-bridge.ts",
+    "sodax-bridge": "tsx src/bridge/sodax-bridge.ts",
+    "sodax-bridge-pure": "tsx src/bridge/sodax-bridge-pure.ts",
+    "sodax-status": "tsx src/bridge/sodax-status.ts"
   },
   "dependencies": {
     "@allbridge/bridge-core-sdk": "^3.29.1",

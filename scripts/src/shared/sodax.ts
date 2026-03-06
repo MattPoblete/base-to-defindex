@@ -12,7 +12,7 @@ import { ethers } from "ethers";
 
 export const bigintReplacer = (_key: string, value: any) => typeof value === 'bigint' ? value.toString() : value;
 
-export const formatError = (error: any) => JSON.stringify(error, bigintReplacer, 2);
+export const formatError = (error: any) => JSON.stringify(error, bigintReplacer);
 
 export const formatJson = (data: any) => JSON.stringify(data, bigintReplacer, 2);
 

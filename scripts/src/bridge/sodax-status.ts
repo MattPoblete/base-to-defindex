@@ -1,17 +1,21 @@
 import { 
   Sodax, 
+  type SolverIntentStatusRequest, 
+  type SolverIntentStatusResponse, 
+  type Result, 
+  type SolverErrorResponse, 
   IntentsAbi, 
-  SolverIntentStatusCode, 
-  BASE_MAINNET_CHAIN_ID
+  SolverIntentStatusCode 
 } from "@sodax/sdk";
 import { ethers } from "ethers";
-import { config } from "./config.js";
+import { config } from "../shared/config.js";
 import { 
+  initializeSodax, 
   getStatusLabel, 
   formatJson, 
   sleep, 
   decodePayload 
-} from "./sodax.js";
+} from "../shared/sodax.js";
 
 // ── Core Functions ──────────────────────────────────────────────────────────
 
@@ -103,7 +107,7 @@ async function pollStatus(sodax: Sodax, txHash: string) {
             console.log(formatJson(filledIntent));
             
             const deliveryPacket = await sodax.swaps.getSolvedIntentPacket({
-              chainId: BASE_MAINNET_CHAIN_ID,
+              chainId: config.sodax.baseChainId,
               fillTxHash: statusResult.value.fill_tx_hash as `0x${string}`
             });
             console.log("🚚 Delivery Packet Info:");
@@ -133,7 +137,7 @@ async function pollStatus(sodax: Sodax, txHash: string) {
 async function main() {
   const txHash = process.argv[2];
   if (!txHash) {
-    console.error("Usage: npx tsx src/sodax-status.ts <SOURCE_TX_HASH>");
+    console.error("Usage: npx tsx src/bridge/sodax-status.ts <SOURCE_TX_HASH>");
     process.exit(1);
   }
 
