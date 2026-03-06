@@ -8,11 +8,16 @@
     "stellar-wallet": "tsx src/stellar-wallet.ts",
     "near-intents": "tsx src/near-intents.ts",
     "allbridge-bridge": "tsx src/allbridge-bridge.ts",
-    "crossmint-bridge": "tsx src/crossmint-bridge.ts"
+    "crossmint-bridge": "tsx src/crossmint-bridge.ts",
+    "sodax-bridge": "tsx src/sodax-bridge.ts",
+    "sodax-bridge-pure": "tsx src/sodax-bridge-pure.ts",
+    "sodax-status": "tsx src/sodax-status.ts"
   },
   "dependencies": {
     "@allbridge/bridge-core-sdk": "^3.29.1",
     "@crossmint/wallets-sdk": "^0.19.0",
+    "@sodax/sdk": "1.2.7-beta",
+    "@sodax/wallet-sdk-core": "1.2.7-beta",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.0"
   },
