@@ -67,13 +67,13 @@ The `scripts/` directory contains tools for interacting with the bridge protocol
 - **Sodax Solver (Swap + Bridge)**: Recommended for most cases as it optimizes for speed using solvers.
 
   ```bash
-  npm run sodax-bridge -- <STELLAR_RECIPIENT_ADDRESS>
+  npm run sodax-swap -- <STELLAR_RECIPIENT_ADDRESS>
   ```
 
 - **Sodax Pure Bridge**: For direct 1:1 asset bridging without solver swaps.
 
   ```bash
-  npm run sodax-bridge-pure -- <STELLAR_RECIPIENT_ADDRESS>
+  npm run sodax-bridge -- <STELLAR_RECIPIENT_ADDRESS>
   ```
 
 - **Status Checker**: Monitor any Sodax transaction using its source hash.

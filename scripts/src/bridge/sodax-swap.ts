@@ -4,10 +4,7 @@ import {
   type SolverIntentQuoteRequest,
   type SolverIntentQuoteResponse,
   type CreateIntentParams,
-  type SolverIntentStatusRequest,
-  type SolverIntentStatusResponse,
   type Result,
-  type SolverErrorResponse,
   type IntentError,
   type Intent,
   type SolverExecutionResponse,
@@ -77,7 +74,7 @@ async function performSwap(
         console.error("   Reason: Transaction was sent but failed to be submitted to Relayer.");
         if (data && (data as any).tx_hash) console.error(`   Base Tx Hash: ${(data as any).tx_hash}`);
         break;
-      case "WAIT_UNTIL_INTENT_EXECUTED_FAILED":
+      case "RELAY_TIMEOUT":
         console.error("   Reason: Relayer timed out waiting for hub execution.");
         break;
       case "POST_EXECUTION_FAILED":
@@ -149,7 +146,7 @@ async function pollStatus(sodax: Sodax, txHash: string): Promise<void> {
 async function main() {
   const stellarRecipient = process.argv[2];
   if (!stellarRecipient) {
-    console.error("Usage: npx tsx src/bridge/sodax-bridge.ts <STELLAR_ADDRESS>");
+    console.error("Usage: npx tsx src/bridge/sodax-swap.ts <STELLAR_ADDRESS>");
     process.exit(1);
   }
 

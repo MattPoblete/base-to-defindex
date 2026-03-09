@@ -95,7 +95,7 @@ async function pollStatus(sodax: Sodax, txHash: string): Promise<void> {
 async function main() {
   const stellarRecipient = process.argv[2];
   if (!stellarRecipient) {
-    console.error("Usage: npx tsx src/bridge/sodax-bridge-pure.ts <STELLAR_ADDRESS>");
+    console.error("Usage: npx tsx src/bridge/sodax-bridge.ts <STELLAR_ADDRESS>");
     process.exit(1);
   }
 

@@ -29,8 +29,8 @@ An intent-based protocol using solvers to optimize transaction speed and cost.
 
 | Command | Purpose | Status |
 | --- | --- | --- |
-| `npm run sodax-bridge -- <ADDR>` | **Solver Flow**: Automated Swap + Bridge. | 🚧 Recurrent Status 2 |
-| `npm run sodax-bridge-pure -- <ADDR>` | **Direct Flow**: 1:1 Bridge without swaps. | 🚧 Recurrent Status 2 |
+| `npm run sodax-swap -- <ADDR>` | **Solver Flow**: Automated Swap + Bridge. | 🚧 Recurrent Status 2 |
+| `npm run sodax-bridge -- <ADDR>` | **Direct Flow**: 1:1 Bridge without swaps. | 🚧 Recurrent Status 2 |
 | `npm run sodax-status -- <HASH>` | **Monitoring**: Debugging and payload decoding. | ✅ Operational |
 
 ### 2. Allbridge Core
