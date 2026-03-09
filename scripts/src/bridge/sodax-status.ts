@@ -9,9 +9,7 @@ import { ethers } from "ethers";
 import { config } from "../shared/config.js";
 import { 
   formatJson, 
-  decodePayload,
   pollSodaxStatus,
-  getStatusLabel
 } from "../shared/sodax.js";
 
 // ── Core Functions ──────────────────────────────────────────────────────────
@@ -54,7 +52,6 @@ async function fetchIntentDetails(sodax: Sodax, txHash: string, blockchainData: 
     const extraData = await sodax.swaps.getIntentSubmitTxExtraData({ txHash: txHash as `0x${string}` });
     if (extraData && extraData.payload) {
       console.log("📦 Decoded Intent (from Sodax API):");
-      console.log(formatJson(decodePayload(extraData.payload)));
       console.log(`\nRelayer Address: ${extraData.address}`);
       return;
     }
@@ -67,71 +64,11 @@ async function fetchIntentDetails(sodax: Sodax, txHash: string, blockchainData: 
         const iface = new ethers.Interface(IntentsAbi);
         const parsed = iface.parseTransaction({ data: blockchainData.data });
         if (parsed && parsed.name === "deposit" && parsed.args.data) {
-            console.log("📦 Decoded Intent (from Blockchain Data):");
-            console.log(formatJson(decodePayload(parsed.args.data)));
         }
     } catch (e) {
         console.warn("  Could not decode intent from blockchain data.");
     }
   }
-}
-
-async function pollStatus(sodax: Sodax, txHash: string) {
-  console.log("\n[3] Polling final solver status...");
-  let completed = false;
-  let attempts = 0;
-  const maxAttempts = 120; 
-  
-  while (!completed && attempts < maxAttempts) {
-    attempts++;
-    const now = new Date().toLocaleTimeString();
-    const statusResult = await sodax.swaps.getStatus({ intent_tx_hash: txHash as `0x${string}` });
-
-    if (statusResult.ok) {
-      const status = statusResult.value.status;
-      const label = getStatusLabel(status);
-      process.stdout.write(`  [${now}] Attempt ${attempts}/${maxAttempts} — Status: ${label}\r`);
-      
-      if (status === SolverIntentStatusCode.SOLVED) {
-        console.log("\n\n✅ SUCCESS: The Solver has delivered the funds on Stellar!");
-
-        if (statusResult.value.fill_tx_hash) {
-          console.log(`\n🔍 Hub Chain (Sonic) Fill Tx: ${statusResult.value.fill_tx_hash}`);
-          try {
-            const deliveryPacketResult = await sodax.swaps.getSolvedIntentPacket({
-              chainId: STELLAR_MAINNET_CHAIN_ID,
-              fillTxHash: statusResult.value.fill_tx_hash as `0x${string}`
-            });
-
-            if (deliveryPacketResult.ok) {
-              const stellarTxHash = deliveryPacketResult.value.dst_tx_hash;
-              console.log(`🚀 Stellar Transaction Hash: ${stellarTxHash}`);
-              console.log(`🔗 Explorer: https://stellar.expert/explorer/mainnet/tx/${stellarTxHash}`);
-            } else {
-              console.log("\n⚠️ Intent solved but delivery packet not yet available in Relay API.");
-              console.log("Status Data:", formatJson(statusResult.value));
-            }
-          } catch (e) {
-            console.warn("\n  ⚠️ Could not fetch detailed delivery info from Relay API.");
-            console.log("Status Data:", formatJson(statusResult.value));
-          }
-        } else {
-          console.log("Status Data:", formatJson(statusResult.value));
-        }
-        completed = true;
-      } else if (status === SolverIntentStatusCode.FAILED) {
-        console.log(`\n\n❌ FAILURE: The solver reported a failure: ${status}`);
-        console.log("Full Details:", formatJson(statusResult.value));
-        completed = true;
-      }
-    } else {
-      process.stdout.write(`  [${now}] Attempt ${attempts}/${maxAttempts} — Status: ⚠️ PENDING/ERROR\r`);
-    }
-    
-    if (!completed) await sleep(10000);
-  }
-
-  if (!completed) console.log("\n\n⚠️ Polling timed out. The transaction might still be in progress.");
 }
 
 // ── Main Execution ──────────────────────────────────────────────────────────

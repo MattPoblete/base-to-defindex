@@ -4,7 +4,8 @@ import {
   BASE_MAINNET_CHAIN_ID,
   STELLAR_MAINNET_CHAIN_ID,
   IntentsAbi,
-  SolverIntentStatusCode
+  SolverIntentStatusCode,
+  SONIC_MAINNET_CHAIN_ID
 } from "@sodax/sdk";
 import { EvmWalletProvider } from "@sodax/wallet-sdk-core";
 import { config } from "./config.js";
@@ -56,7 +57,7 @@ export async function pollSodaxStatus(sodax: Sodax, txHash: string, maxAttempts 
           console.log(`\n🔍 Hub Chain (Sonic) Fill Tx: ${statusResult.value.fill_tx_hash}`);
           try {
             const deliveryPacketResult = await sodax.swaps.getSolvedIntentPacket({
-              chainId: STELLAR_MAINNET_CHAIN_ID,
+              chainId: SONIC_MAINNET_CHAIN_ID,
               fillTxHash: statusResult.value.fill_tx_hash as `0x${string}`
             });
 
@@ -65,6 +66,7 @@ export async function pollSodaxStatus(sodax: Sodax, txHash: string, maxAttempts 
               console.log(`🚀 Stellar Transaction Hash: ${stellarTxHash}`);
               console.log(`🔗 Explorer: https://stellar.expert/explorer/mainnet/tx/${stellarTxHash}`);
             } else {
+              console.log(deliveryPacketResult)
               console.log("\n⚠️ Intent solved but delivery packet not yet available in Relay API.");
               console.log("Status Data:", formatJson(statusResult.value));
             }
@@ -153,46 +155,5 @@ export async function handleAllowance(
     console.log("  Approval confirmed.");
   } else {
     console.log("  Token allowance is sufficient.");
-  }
-}
-
-export function decodePayload(payload: string) {
-  try {
-    const abiCoder = ethers.AbiCoder.defaultAbiCoder();
-    let dataToDecode = payload;
-    if (payload.length % 64 !== 2) { 
-      dataToDecode = "0x" + payload.slice(10); 
-    }
-
-    const intentTypes = [
-      "uint256", "address", "address", "address", "uint256", "uint256", 
-      "uint256", "bool", "uint256", "uint256", "bytes", "bytes", "address", "bytes"
-    ];
-
-    const decoded = abiCoder.decode(intentTypes, dataToDecode);
-    
-    return {
-      intentId: decoded[0].toString(),
-      creator: decoded[1],
-      inputToken: decoded[2],
-      outputToken: decoded[3],
-      inputAmount: decoded[4].toString(),
-      minOutputAmount: decoded[5].toString(),
-      deadline: new Date(Number(decoded[6]) * 1000).toLocaleString(),
-      allowPartialFill: decoded[7],
-      srcChain: decoded[8].toString(),
-      dstChain: decoded[9].toString(),
-      srcAddress: decoded[10],
-      dstAddress: decoded[11],
-      solver: decoded[12],
-      data: decoded[13]
-    };
-  } catch (e) {
-    try {
-        const iface = new ethers.Interface(IntentsAbi);
-        const decoded = iface.parseTransaction({ data: payload });
-        if (decoded) return { function: decoded.name, args: decoded.args };
-    } catch (e2) {}
-    return { error: "Failed to decode payload", raw: payload.slice(0, 100) + "..." };
   }
 }

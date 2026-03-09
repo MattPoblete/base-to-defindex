@@ -12,10 +12,7 @@ import {
   type IntentErrorCode,
   BASE_MAINNET_CHAIN_ID,
   STELLAR_MAINNET_CHAIN_ID,
-  SolverIntentStatusCode,
-  sleep
 } from "@sodax/sdk";
-import { EvmWalletProvider } from "@sodax/wallet-sdk-core";
 import { config } from "../shared/config.js";
 import { ethers } from "ethers";
 import { 
@@ -25,7 +22,6 @@ import {
   bigintReplacer,
   handleAllowance,
   pollSodaxStatus,
-  getStatusLabel
 } from "../shared/sodax.js";
 
 // ── Core Functions ──────────────────────────────────────────────────────────
@@ -99,50 +95,6 @@ async function performSwap(
     baseTxHash: deliveryInfo.srcTxHash as string,
     statusHash: (solverResponse.intent_hash || deliveryInfo.srcTxHash) as string
   };
-}
-
-async function pollStatus(sodax: Sodax, txHash: string): Promise<void> {
-  console.log("\n[6] Polling final solver status...");
-  
-  let completed = false;
-  let attempts = 0;
-  const maxAttempts = 60;
-  
-  while (!completed && attempts < maxAttempts) {
-    attempts++;
-    const now = new Date().toLocaleTimeString();
-    const statusResult = await sodax.swaps.getStatus({
-      intent_tx_hash: txHash as `0x${string}`,
-    });
-    
-    if (statusResult.ok) {
-      const status = statusResult.value.status;
-      const label = getStatusLabel(status);
-      console.log(`  [${now}] Attempt ${attempts}/${maxAttempts} — Status: ${label}`);
-      
-      if (status === SolverIntentStatusCode.SOLVED) {
-        const fillTxHash = statusResult.value.fill_tx_hash || 'N/A';
-        const fullInfo = await sodax.swaps.getFilledIntent(fillTxHash as `0x${string}`);
-        console.log(fullInfo);
-        console.log("\n\n🎉 SUCCESS: The Solver has delivered the funds on Stellar!");
-        completed = true;
-      } else if (status === SolverIntentStatusCode.FAILED) {
-        console.log(`\n❌ FAILURE: The solver reported a failure.`);
-        console.log("   Details:", formatError(statusResult.value));
-        completed = true;
-      }
-    } else {
-      console.log(`  [${now}] Attempt ${attempts}/${maxAttempts} — Status: ⚠️ PENDING/ERROR`);
-    }
-    
-    if (!completed) {
-      await sleep(10000); 
-    }
-  }
-
-  if (!completed) {
-    console.log("\n⚠️ Polling timed out. Use sodax-status script to check later.");
-  }
 }
 
 // ── Main Execution ──────────────────────────────────────────────────────────
