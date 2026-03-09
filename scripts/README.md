@@ -30,7 +30,6 @@ An intent-based protocol using solvers to optimize transaction speed and cost.
 | Command | Purpose | Status |
 | --- | --- | --- |
 | `npm run sodax-swap -- <ADDR>` | **Solver Flow**: Automated Swap + Bridge. | 🚧 Recurrent Status 2 |
-| `npm run sodax-bridge -- <ADDR>` | **Direct Flow**: 1:1 Bridge without swaps. | 🚧 Recurrent Status 2 |
 | `npm run sodax-status -- <HASH>` | **Monitoring**: Debugging and payload decoding. | ✅ Operational |
 
 ### 2. Allbridge Core
@@ -69,9 +68,3 @@ This script implements a modular architecture designed to swap the underlying br
 | `npm run stellar-wallet` | Manage Smart Wallets on **Stellar** (Soroban). | ✅ Stable |
 
 ---
-
-## 🔍 Technical Debugging Notes (Sodax)
-
-- **Status 2 (STARTED_NOT_FINISHED):** The transaction is on the Hub (Sonic) waiting for final execution by the solver.
-- **Error -999:** Generic API error; please double-check token parameters and indexing.
-- **Payload Decoding:** `sodax-status` automatically strips the function selector for a clean ABI decoding of the intent.

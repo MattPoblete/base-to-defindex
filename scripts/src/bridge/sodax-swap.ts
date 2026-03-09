@@ -91,12 +91,12 @@ async function performSwap(
   const [solverResponse, _intent, deliveryInfo] = swapResult.value;
   
   console.log(`\n✅ Swap Execution Step Finished!`);
-  console.log(`   Base Tx Hash:    ${(deliveryInfo as any).tx_hash}`);
+  console.log(`   Base Tx Hash:    ${deliveryInfo.srcTxHash}`);
   console.log(`   Dest Intent Hash: ${solverResponse.intent_hash || 'N/A'}`);
   
   return {
-    baseTxHash: (deliveryInfo as any).tx_hash as string,
-    statusHash: (solverResponse.intent_hash || (deliveryInfo as any).tx_hash) as string
+    baseTxHash: deliveryInfo.srcTxHash as string,
+    statusHash: (solverResponse.intent_hash || deliveryInfo.srcTxHash) as string
   };
 }
 
@@ -176,7 +176,7 @@ async function main() {
       dstChain: STELLAR_MAINNET_CHAIN_ID,
       srcAddress: evmAddress,
       dstAddress: stellarRecipient,
-      solver: sodax.swaps.config.intentsContract,
+      solver: '0x0000000000000000000000000000000000000000',
       data: "0x",
     };
 

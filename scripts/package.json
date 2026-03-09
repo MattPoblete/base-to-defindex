@@ -10,7 +10,6 @@
     "allbridge-bridge": "tsx src/bridge/allbridge-bridge.ts",
     "crossmint-bridge": "tsx src/bridge/crossmint-bridge.ts",
     "sodax-swap": "tsx src/bridge/sodax-swap.ts",
-    "sodax-bridge": "tsx src/bridge/sodax-bridge.ts",
     "sodax-status": "tsx src/bridge/sodax-status.ts"
   },
   "dependencies": {
