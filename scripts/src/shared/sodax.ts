@@ -2,7 +2,9 @@ import {
   Sodax, 
   EvmSpokeProvider, 
   BASE_MAINNET_CHAIN_ID,
-  IntentsAbi
+  STELLAR_MAINNET_CHAIN_ID,
+  IntentsAbi,
+  SolverIntentStatusCode
 } from "@sodax/sdk";
 import { EvmWalletProvider } from "@sodax/wallet-sdk-core";
 import { config } from "./config.js";
@@ -30,6 +32,64 @@ export const getStatusLabel = (code: number) => {
 };
 
 // ── Core Functions ──────────────────────────────────────────────────────────
+
+export async function pollSodaxStatus(sodax: Sodax, txHash: string, maxAttempts = 120): Promise<void> {
+  console.log("\n[Status] Polling final solver status...");
+  
+  let completed = false;
+  let attempts = 0;
+  
+  while (!completed && attempts < maxAttempts) {
+    attempts++;
+    const now = new Date().toLocaleTimeString();
+    const statusResult = await sodax.swaps.getStatus({ intent_tx_hash: txHash as `0x${string}` });
+
+    if (statusResult.ok) {
+      const status = statusResult.value.status;
+      const label = getStatusLabel(status);
+      process.stdout.write(`  [${now}] Attempt ${attempts}/${maxAttempts} — Status: ${label}\r`);
+      
+      if (status === SolverIntentStatusCode.SOLVED) {
+        console.log("\n\n✅ SUCCESS: The Solver has delivered the funds on Stellar!");
+
+        if (statusResult.value.fill_tx_hash) {
+          console.log(`\n🔍 Hub Chain (Sonic) Fill Tx: ${statusResult.value.fill_tx_hash}`);
+          try {
+            const deliveryPacketResult = await sodax.swaps.getSolvedIntentPacket({
+              chainId: STELLAR_MAINNET_CHAIN_ID,
+              fillTxHash: statusResult.value.fill_tx_hash as `0x${string}`
+            });
+
+            if (deliveryPacketResult.ok) {
+              const stellarTxHash = deliveryPacketResult.value.dst_tx_hash;
+              console.log(`🚀 Stellar Transaction Hash: ${stellarTxHash}`);
+              console.log(`🔗 Explorer: https://stellar.expert/explorer/mainnet/tx/${stellarTxHash}`);
+            } else {
+              console.log("\n⚠️ Intent solved but delivery packet not yet available in Relay API.");
+              console.log("Status Data:", formatJson(statusResult.value));
+            }
+          } catch (e) {
+            console.warn("\n  ⚠️ Could not fetch detailed delivery info from Relay API.");
+            console.log("Status Data:", formatJson(statusResult.value));
+          }
+        } else {
+          console.log("Status Data:", formatJson(statusResult.value));
+        }
+        completed = true;
+      } else if (status === SolverIntentStatusCode.FAILED) {
+        console.log(`\n\n❌ FAILURE: The solver reported a failure: ${status}`);
+        console.log("Full Details:", formatJson(statusResult.value));
+        completed = true;
+      }
+    } else {
+      process.stdout.write(`  [${now}] Attempt ${attempts}/${maxAttempts} — Status: ⚠️ PENDING/ERROR\r`);
+    }
+    
+    if (!completed) await sleep(10000);
+  }
+
+  if (!completed) console.log("\n\n⚠️ Polling timed out. The transaction might still be in progress.");
+}
 
 export async function initializeSodax(): Promise<Sodax> {
   console.log("\n[1] Initializing Sodax SDK...");

@@ -1,20 +1,14 @@
 import { 
   Sodax, 
-  type SolverIntentStatusRequest, 
-  type SolverIntentStatusResponse, 
-  type Result, 
-  type SolverErrorResponse, 
   IntentsAbi, 
-  SolverIntentStatusCode 
+  STELLAR_MAINNET_CHAIN_ID
 } from "@sodax/sdk";
 import { ethers } from "ethers";
 import { config } from "../shared/config.js";
 import { 
-  initializeSodax, 
-  getStatusLabel, 
   formatJson, 
-  sleep, 
-  decodePayload 
+  decodePayload,
+  pollSodaxStatus
 } from "../shared/sodax.js";
 
 // ── Core Functions ──────────────────────────────────────────────────────────
@@ -97,24 +91,29 @@ async function pollStatus(sodax: Sodax, txHash: string) {
       
       if (status === SolverIntentStatusCode.SOLVED) {
         console.log("\n\n✅ SUCCESS: The Solver has delivered the funds on Stellar!");
-        console.log("Status Data:", formatJson(statusResult.value));
-        
+
         if (statusResult.value.fill_tx_hash) {
-          console.log(`\n🔍 Hub Chain Fill Tx: ${statusResult.value.fill_tx_hash}`);
+          console.log(`\n🔍 Hub Chain (Sonic) Fill Tx: ${statusResult.value.fill_tx_hash}`);
           try {
-            const filledIntent = await sodax.swaps.getFilledIntent(statusResult.value.fill_tx_hash as `0x${string}`);
-            console.log("📝 Filled Intent State:");
-            console.log(formatJson(filledIntent));
-            
-            const deliveryPacket = await sodax.swaps.getSolvedIntentPacket({
-              chainId: config.sodax.baseChainId,
+            const deliveryPacketResult = await sodax.swaps.getSolvedIntentPacket({
+              chainId: STELLAR_MAINNET_CHAIN_ID,
               fillTxHash: statusResult.value.fill_tx_hash as `0x${string}`
             });
-            console.log("🚚 Delivery Packet Info:");
-            console.log(formatJson(deliveryPacket));
+
+            if (deliveryPacketResult.ok) {
+              const stellarTxHash = deliveryPacketResult.value.dst_tx_hash;
+              console.log(`🚀 Stellar Transaction Hash: ${stellarTxHash}`);
+              console.log(`🔗 Explorer: https://stellar.expert/explorer/mainnet/tx/${stellarTxHash}`);
+            } else {
+              console.log("\n⚠️ Intent solved but delivery packet not yet available in Relay API.");
+              console.log("Status Data:", formatJson(statusResult.value));
+            }
           } catch (e) {
-            console.warn("  (Could not fetch detailed fill/delivery info yet)");
+            console.warn("\n  ⚠️ Could not fetch detailed delivery info from Relay API.");
+            console.log("Status Data:", formatJson(statusResult.value));
           }
+        } else {
+          console.log("Status Data:", formatJson(statusResult.value));
         }
         completed = true;
       } else if (status === SolverIntentStatusCode.FAILED) {
@@ -151,7 +150,7 @@ async function main() {
 
     const blockchainData = await fetchBlockchainTx(txHash);
     await fetchIntentDetails(sodax, txHash, blockchainData);
-    await pollStatus(sodax, txHash);
+    await pollSodaxStatus(sodax, txHash);
 
   } catch (error) {
     console.error("\nFATAL ERROR:", error instanceof Error ? error.message : error);

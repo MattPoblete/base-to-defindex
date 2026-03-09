@@ -20,11 +20,10 @@ import { ethers } from "ethers";
 import { 
   initializeSodax, 
   setupEvmProvider, 
-  getStatusLabel, 
   formatError, 
-  sleep, 
   bigintReplacer,
-  handleAllowance
+  handleAllowance,
+  pollSodaxStatus
 } from "../shared/sodax.js";
 
 // ── Core Functions ──────────────────────────────────────────────────────────
@@ -120,6 +119,9 @@ async function pollStatus(sodax: Sodax, txHash: string): Promise<void> {
       console.log(`  [${now}] Attempt ${attempts}/${maxAttempts} — Status: ${label}`);
       
       if (status === SolverIntentStatusCode.SOLVED) {
+        const fillTxHash = statusResult.value.fill_tx_hash || 'N/A';
+        const fullInfo = await sodax.swaps.getFilledIntent(fillTxHash as `0x${string}`);
+        console.log(fullInfo);
         console.log("\n\n🎉 SUCCESS: The Solver has delivered the funds on Stellar!");
         completed = true;
       } else if (status === SolverIntentStatusCode.FAILED) {
@@ -182,7 +184,7 @@ async function main() {
 
     await handleAllowance(sodax.swaps, intentParams, evmSpoke, evmWallet);
     const { statusHash } = await performSwap(sodax, intentParams, evmSpoke);
-    await pollStatus(sodax, statusHash);
+    await pollSodaxStatus(sodax, statusHash);
 
   } catch (error) {
     console.error("\nFATAL ERROR:", error instanceof Error ? error.message : error);
