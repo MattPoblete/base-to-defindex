@@ -8,6 +8,8 @@ import {
 const env = process.env.CROSSMINT_ENV ?? "staging";
 const isStaging = env === "staging";
 
+export const SOROSWAP_EARN_USDC_VAULT="CA2FIPJ7U6BG3N7EOZFI74XPJZOEOD4TYWXFVCIO5VDCHTVAGS6F4UKK"
+
 export const config = {
   apiKey: process.env.CROSSMINT_SERVER_API_KEY ?? "",
   baseUrl: isStaging
@@ -57,7 +59,12 @@ export const config = {
   bridge: {
     amount: "0.1",
     usdcDecimals: 6,
-  }
+  },
+
+  // DeFindex vault deposit (optional)
+  defindexApiUrl: process.env.DEFINDEX_API_URL ?? "https://api.defindex.io",
+  defindexVaultAddress: SOROSWAP_EARN_USDC_VAULT,
+  defindexApiKey: process.env.DEFINDEX_API_KEY ?? "",
 };
 
 // Validate Crossmint env vars (warn instead of throw so non-Crossmint scripts can import config)

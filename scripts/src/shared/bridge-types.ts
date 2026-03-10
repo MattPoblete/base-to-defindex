@@ -28,8 +28,13 @@ export interface BridgeExecutionResult {
   statusHash: string; // Used for polling status
 }
 
+export interface BridgePollResult {
+  destTxHash: string;
+  amountReceived: bigint; // Actual output amount settled by the solver (Stellar stroops)
+}
+
 export interface IBridgeService {
   getQuote(params: SwapParams): Promise<BridgeQuote>;
   executeSwap(signer: any, params: SwapParams, quote: BridgeQuote): Promise<BridgeExecutionResult>;
-  pollStatus(statusHash: string): Promise<string>; // Returns the destination Tx Hash if successful
+  pollStatus(statusHash: string): Promise<BridgePollResult>;
 }

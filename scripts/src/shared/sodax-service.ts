@@ -13,11 +13,12 @@ import {
   SONIC_MAINNET_CHAIN_ID
 } from "@sodax/sdk";
 import { IEvmWalletProvider, Address, Hash, SpokeChainId } from "@sodax/types";
-import { 
-  IBridgeService, 
-  SwapParams, 
-  BridgeQuote, 
-  BridgeExecutionResult 
+import {
+  IBridgeService,
+  SwapParams,
+  BridgeQuote,
+  BridgeExecutionResult,
+  BridgePollResult,
 } from "./bridge-types.js";
 import { 
   formatError, 
@@ -103,36 +104,54 @@ export class SodaxBridgeService implements IBridgeService {
     };
   }
 
-  async pollStatus(statusHash: string, maxAttempts = 120): Promise<string> {
+  async pollStatus(statusHash: string, maxAttempts = 120): Promise<BridgePollResult> {
     console.log(`\n[Status] Polling Sodax status for: ${statusHash}`);
-    
+
     let attempts = 0;
     while (attempts < maxAttempts) {
       attempts++;
-      const statusResult = await this.sodax.swaps.getStatus({ intent_tx_hash: statusHash as `0x${string}` });
+      const statusResult = await this.sodax.swaps.getStatus({
+        intent_tx_hash: statusHash as `0x${string}`,
+      });
 
       if (statusResult.ok) {
         const status = statusResult.value.status;
         const label = getStatusLabel(status);
         console.log(`  Attempt ${attempts}/${maxAttempts} — Status: ${label}`);
-        
-        if (status === SolverIntentStatusCode.SOLVED) {
-          if (statusResult.value.fill_tx_hash) {
-            const deliveryPacketResult = await this.sodax.swaps.getSolvedIntentPacket({
-              chainId: SONIC_MAINNET_CHAIN_ID,
-              fillTxHash: statusResult.value.fill_tx_hash as `0x${string}`
-            });
 
-            if (deliveryPacketResult.ok) {
-              return deliveryPacketResult.value.dst_tx_hash;
+        if (status === SolverIntentStatusCode.SOLVED) {
+          const fillTxHash = statusResult.value.fill_tx_hash as `0x${string}` | undefined;
+
+          // Fetch the actual settled output amount from the Hub chain intent state
+          let amountReceived = 0n;
+          if (fillTxHash) {
+            try {
+              const intentState = await this.sodax.swaps.getFilledIntent(fillTxHash);
+              amountReceived = intentState.receivedOutput;
+              console.log(`  Settled output: ${amountReceived} (stroops)`);
+            } catch {
+              console.warn(`  Could not fetch intent state for ${fillTxHash}, amountReceived=0`);
             }
           }
-          return "SOLVED (Dest hash pending)";
+
+          // Resolve the Stellar destination tx hash via the packet relay
+          let destTxHash = "SOLVED (Dest hash pending)";
+          if (fillTxHash) {
+            const packetResult = await this.sodax.swaps.getSolvedIntentPacket({
+              chainId: SONIC_MAINNET_CHAIN_ID,
+              fillTxHash,
+            });
+            if (packetResult.ok) {
+              destTxHash = packetResult.value.dst_tx_hash;
+            }
+          }
+
+          return { destTxHash, amountReceived };
         } else if (status === SolverIntentStatusCode.FAILED) {
           throw new Error(`Swap failed on-chain: ${status}`);
         }
       }
-      
+
       await sleep(10000);
     }
 
