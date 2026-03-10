@@ -1,5 +1,6 @@
 import { ethers } from "ethers";
 import { config } from "../shared/config.js";
+import { DefindexService } from "../shared/defindex-service.js";
 import { initializeSodax } from "../shared/sodax.js";
 import { SodaxBridgeService } from "../shared/sodax-service.js";
 import { CrossmintEvmSodaxAdapter } from "../shared/crossmint-adapters.js";
@@ -16,11 +17,11 @@ async function main() {
   const restClient = new CrossmintRestClient(config.apiKey, config.baseUrl);
 
   // [2] Get Wallets
-  console.log(`\n[1/4] Initializing Crossmint wallets...`);
+  console.log(`\n[1/5] Initializing Crossmint wallets...`);
 
   // EVM Wallet — owned by EVM private key (external-wallet), no email OTP needed
   const { address: evmAddress, locator: walletLocator } =
-    await restClient.getOrCreateEvmScriptsWallet();
+    await restClient.getOrCreateEvmWallet();
   console.log(`  Base Address:    ${evmAddress}`);
   console.log(`  Wallet Locator:  ${walletLocator}`);
 
@@ -51,12 +52,14 @@ async function main() {
 
   const amountIn = BigInt(Number(config.bridge.amount) * 10 ** config.sodax.usdcDecimals);
 
-  if (usdcBalance < amountIn || ethBalance === 0n) {
+  const MIN_ETH = ethers.parseEther("0.001"); // minimum for gas fees
+
+  if (usdcBalance < amountIn || ethBalance < MIN_ETH) {
     console.log(`\n  ⚠️  Wallet needs funding before the bridge can run.`);
     console.log(`  ──────────────────────────────────────────────`);
     console.log(`  Send to: ${evmAddress}`);
     console.log(`    • USDC: at least ${config.bridge.amount} (have ${usdcFormatted})`);
-    console.log(`    • ETH:  some for gas (have ${ethFormatted})`);
+    console.log(`    • ETH:  at least 0.001 (have ${ethFormatted})`);
     console.log(`  ──────────────────────────────────────────────`);
     process.exit(0);
   }
@@ -98,24 +101,41 @@ async function main() {
 
   try {
     // [5] Get Quote
-    console.log(`\n[2/4] Fetching quote for ${config.bridge.amount} USDC...`);
+    console.log(`\n[2/5] Fetching quote for ${config.bridge.amount} USDC...`);
     const quote = await bridgeService.getQuote(swapParams);
     const amountOutFormatted = ethers.formatUnits(quote.amountOut, dstToken.decimals);
     console.log(`  Quoted Amount Out: ${amountOutFormatted} USDC (Stellar)`);
 
     // [6] Execute Swap
-    console.log("\n[3/4] Executing swap (this involves allowance + intent creation)...");
+    console.log("\n[3/5] Executing swap (this involves allowance + intent creation)...");
     const result = await bridgeService.executeSwap(crossmintAdapter, swapParams, quote);
     console.log(`\n✅ Swap initiated!`);
     console.log(`   Base Tx Hash: ${result.srcTxHash}`);
 
     // [7] Poll Status
-    console.log("\n[4/4] Monitoring progress until fulfillment on Stellar...");
-    const destTxHash = await bridgeService.pollStatus(result.statusHash);
+    console.log("\n[4/5] Monitoring progress until fulfillment on Stellar...");
+    const { destTxHash, amountReceived } = await bridgeService.pollStatus(result.statusHash);
 
-    console.log(`\n🎉 BRIDGE COMPLETE!`);
+    console.log(`\n✅ Bridge complete!`);
     console.log(`   Stellar Tx Hash: ${destTxHash}`);
     console.log(`   Explorer: https://stellar.expert/explorer/mainnet/tx/${destTxHash}`);
+
+    // [5/5] Deposit into DeFindex vault
+    if (config.defindexVaultAddress) {
+      console.log(`\n[5/5] Depositing into DeFindex vault...`);
+      const defindexService = new DefindexService(stellarRecipient);
+      const depositTxHash = await defindexService.depositToVault(
+        config.defindexVaultAddress,
+        amountReceived,
+        stellarRecipient
+      );
+      console.log(`\n🎉 BRIDGE + VAULT COMPLETE!`);
+      console.log(`   DeFindex deposit tx: ${depositTxHash}`);
+      console.log(`   Explorer: https://stellar.expert/explorer/mainnet/tx/${depositTxHash}`);
+    } else {
+      console.log(`\n🎉 BRIDGE COMPLETE!`);
+      console.log(`   (Set DEFINDEX_VAULT_ADDRESS to auto-deposit into a DeFindex vault)`);
+    }
 
   } catch (error: any) {
     console.error(`\n❌ Bridge failed: ${error.message}`);
