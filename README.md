@@ -2,106 +2,87 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A cross-chain bridge solution to move assets (primarily USDC) from **Base (Base L2)** to **Stellar/Soroban**, integrated with **DeFindex** vaults. This project leverages on diferent modules for cross-chain intents or bridge, and **Crossmint** for seamless smart wallet management via Account Abstraction.
+A cross-chain bridge solution to move assets (primarily USDC) from **Base (L2)** to **Stellar/Soroban**, with integration targets for **DeFindex** vaults. The project uses **Crossmint** smart wallets (Account Abstraction) for both chains and the **Sodax** intent protocol for cross-chain execution.
 
-## 🚀 Overview
+## Overview
 
-This repository contains both a user-facing web application and a suite of developer tools for cross-chain operations:
+This repository contains two components:
 
-- **`dapp/`**: A modern Next.js 15 frontend providing a seamless bridging experience powered by Sodax.
-- **`scripts/`**: A structured collection of TypeScript CLI tools:
-  - **`bridge/`**: Cross-chain transfer implementations (Sodax, Near Intents, and Allbridge).
+- **`dapp/`**: Next.js 15 frontend providing a user-facing bridge UI powered by Sodax.
+- **`scripts/`**: TypeScript CLI tools for server-side cross-chain operations:
+  - **`bridge/`**: Cross-chain transfer scripts (Sodax, Allbridge, Near Intents).
   - **`wallets/`**: Smart wallet management for Base and Stellar via Crossmint.
-  - **`shared/`**: Common configuration and utilities.
+  - **`shared/`**: Common config, REST client, adapters, and Sodax service.
 
-## 🏗️ Architecture
+## Architecture
 
-- **Primary Bridging Protocol**: [Sodax Solver](https://sodax.com/) (Intent-based)
-- **Wallet Infrastructure**: [Crossmint Smart Wallets](https://www.crossmint.com/)
-- **Source Network**: Base (EVM)
-- **Destination Network**: Stellar (Soroban)
-- **Integration Target**: DeFindex Vaults
+- **Bridging protocol**: [Sodax](https://sodax.com/) (intent-based, solver-filled)
+- **Wallet infrastructure**: [Crossmint Smart Wallets](https://www.crossmint.com/) — server-key pattern (no email OTP)
+- **Source chain**: Base (EVM)
+- **Destination chain**: Stellar (Soroban)
 
-## 🛠️ Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- Node.js (v18+)
-- pnpm (for the dapp)
-- npm (for scripts)
+- Node.js v18+
+- pnpm
 
-### Setup
+### Dapp (Web Interface)
 
-1. **Clone the repository:**
+```bash
+cd dapp
+pnpm install
+cp .env.example .env.local
+# Configure .env.local
+pnpm dev
+```
 
-   ```bash
-   git clone <repository-url>
-   cd base-to-defindex
-   ```
+### Scripts (CLI Tools)
 
-2. **Dapp (Web Interface):**
+```bash
+cd scripts
+pnpm install
+cp .env.example .env
+# Configure .env (see scripts/README.md for all variables)
+```
 
-   ```bash
-   cd dapp
-   pnpm install
-   cp .env.example .env.local
-   # Configure your variables in .env.local
-   pnpm dev
-   ```
+## Running Scripts
 
-3. **Scripts (CLI Tools):**
+### Sodax + Crossmint bridge (primary)
 
-   ```bash
-   cd scripts
-   npm install
-   cp .env.example .env
-   # Configure your variables in .env
-   ```
+```bash
+cd scripts
 
-## ⌨️ Running Scripts
+# Bridge Base USDC → Stellar USDC (Stellar recipient auto-discovered via Crossmint email)
+pnpm sodax-crossmint
 
-The `scripts/` directory contains tools for interacting with the bridge protocols and wallets.
+# Override recipient
+pnpm sodax-crossmint -- <STELLAR_ADDRESS>
 
-### Sodax Bridge (Primary)
+# Check status of an in-flight intent
+pnpm sodax-status -- <SOURCE_TX_HASH>
+```
 
-- **Sodax Solver (Swap + Bridge)**: Recommended for most cases as it optimizes for speed using solvers.
+### Other bridge scripts
 
-  ```bash
-  npm run sodax-swap -- <STELLAR_RECIPIENT_ADDRESS>
-  ```
+```bash
+pnpm allbridge-bridge   # Allbridge Core SDK
+pnpm near-intents       # Near Intents / Defuse protocol
+```
 
-- **Sodax Pure Bridge**: For direct 1:1 asset bridging without solver swaps.
+### Wallet utilities
 
-  ```bash
-  npm run sodax-bridge -- <STELLAR_RECIPIENT_ADDRESS>
-  ```
+```bash
+pnpm base-wallet        # Manage Crossmint EVM smart wallet
+pnpm stellar-wallet     # Manage Crossmint Stellar smart wallet
+```
 
-- **Status Checker**: Monitor any Sodax transaction using its source hash.
+## Documentation
 
-  ```bash
-  npm run sodax-status -- <SOURCE_TX_HASH>
-  ```
+- [Scripts README](./scripts/README.md) — detailed setup, env vars, architecture
+- [Dapp README](./dapp/README.md) — dapp setup and usage
 
-### Other Tools
+## License
 
-- **Near Intents (Defuse)**: Bridge based on the Defuse protocol.
-
-  ```bash
-  npm run near-intents -- <STELLAR_RECIPIENT_ADDRESS>
-  ```
-
-- **Allbridge Core SDK**: Executes the bridge flow using Allbridge.
-
-  ```bash
-  npm run allbridge-bridge -- <STELLAR_RECIPIENT_ADDRESS>
-  ```
-
-## 📜 Documentation
-
-- [Dapp README](./dapp/README.md)
-- [Scripts README](./scripts/README.md)
-- [Developer Context (AI/Gemini CLI)](./GEMINI.md)
-
-## ⚖️ License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT — see [LICENSE](LICENSE).

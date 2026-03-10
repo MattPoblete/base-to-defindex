@@ -1,36 +1,40 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Base to DeFindex — Dapp
 
-## Getting Started
+Next.js 15 frontend for bridging USDC from **Base** to **Stellar** via the [Sodax](https://sodax.com/) intent protocol, with **Crossmint** smart wallet integration for Account Abstraction.
 
-First, run the development server:
+## Setup
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+1. **Install dependencies:**
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+   ```bash
+   pnpm install
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+2. **Configure environment variables:**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local with your values
+   ```
 
-## Learn More
+   | Variable | Description |
+   | --- | --- |
+   | `NEXT_PUBLIC_CROSSMINT_API_KEY` | Crossmint client-side API key (`ck_...`) from the [Crossmint console](https://www.crossmint.com/console/projects/apiKeys) |
+   | `NEXT_PUBLIC_BASE_RPC_URL` | JSON-RPC endpoint for Base mainnet |
+   | `NEXT_PUBLIC_SOROBAN_RPC_URL` | Soroban RPC endpoint |
+   | `NEXT_PUBLIC_STELLAR_HORIZON_URL` | Stellar Horizon API URL |
 
-To learn more about Next.js, take a look at the following resources:
+3. **Run the development server:**
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   pnpm dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   Open [http://localhost:3000](http://localhost:3000).
 
-## Deploy on Vercel
+## Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Framework**: Next.js 15 (App Router)
+- **Bridge**: Sodax SDK (intent-based, solver-filled)
+- **Wallets**: Crossmint (`@crossmint/wallets-sdk`) + Allbridge Core SDK
+- **Chains**: Base (EVM source) → Stellar/Soroban (destination)
