@@ -15,6 +15,7 @@
   "dependencies": {
     "@allbridge/bridge-core-sdk": "^3.29.1",
     "@crossmint/wallets-sdk": "^0.19.0",
+    "@stellar/stellar-base": "^12.1.1",
     "@sodax/sdk": "1.2.7-beta",
     "@sodax/types": "^1.2.7-beta",
     "@sodax/wallet-sdk-core": "1.2.7-beta",

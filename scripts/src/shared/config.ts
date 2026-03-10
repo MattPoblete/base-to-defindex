@@ -35,6 +35,7 @@ export const config = {
   clientApiKey: process.env.CROSSMINT_CLIENT_API_KEY ?? "",
   signerType: (process.env.CROSSMINT_SIGNER_TYPE ?? "api-key") as "api-key" | "email",
   evmPrivateKey: process.env.EVM_PRIVATE_KEY ?? "",
+  stellarServerKey: process.env.STELLAR_SERVER_KEY ?? "",
   baseRpcUrl: process.env.BASE_RPC_URL ?? "https://mainnet.base.org",
   sorobanRpcUrl:
     process.env.SOROBAN_RPC_URL ?? "https://rpc.stellar.org:443",

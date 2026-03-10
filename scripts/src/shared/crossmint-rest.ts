@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-import { CrossmintWallets, createCrossmint } from "@crossmint/wallets-sdk";
+import { Keypair } from "@stellar/stellar-base";
 import { config } from "./config.js";
 
 const API_VERSION = "2025-06-09";
@@ -129,33 +129,49 @@ export class CrossmintRestClient {
   }
 
   /**
-   * Returns the Stellar wallet address linked to the configured email.
-   * Used only as a recipient address — no transactions are sent from it.
+   * Returns the Stellar smart wallet address linked to the configured email.
+   * Uses the server-key pattern: a Stellar ed25519 keypair (STELLAR_SERVER_KEY env var)
+   * is set as the adminSigner on the Soroban smart wallet via REST API.
    *
-   * Tries to GET an existing wallet first via REST. If not found, falls back to
-   * CrossmintWallets SDK createWallet (Soroban smart wallet) since the REST API
-   * v2025-06-09 POST /wallets only accepts chainType: "evm".
+   * Tries to GET an existing wallet first (idempotent on re-runs).
    */
   async getStellarWalletAddress(): Promise<string> {
+    if (!config.stellarServerKey) {
+      throw new Error(
+        "STELLAR_SERVER_KEY is required. Generate a Stellar keypair and set it in .env"
+      );
+    }
+
+    const stellarKeypair = Keypair.fromSecret(config.stellarServerKey);
+    const stellarAddress = stellarKeypair.publicKey();
+
     const locator = `email:${config.walletEmail}:stellar`;
     try {
-      const wallet = await this.request<{ address: string }>(
+      const existing = await this.request<{ address: string }>(
         "GET",
         `wallets/${encodeURIComponent(locator)}`
       );
-      return wallet.address;
+      return existing.address;
     } catch (err: any) {
       if (!err.message?.includes("404")) throw err;
     }
 
-    console.log(`  Stellar wallet not found, creating via CrossmintWallets SDK...`);
-    const crossmint = createCrossmint({ apiKey: this.apiKey });
-    const wallets = CrossmintWallets.from(crossmint);
-    const wallet = await wallets.createWallet({
-      chain: "stellar",
-      signer: { type: "api-key" },
-      owner: `email:${config.walletEmail}`,
-    });
+    console.log(`  Stellar wallet not found, creating with external-wallet adminSigner...`);
+    const wallet = await this.request<{ address: string }>(
+      "POST",
+      "wallets",
+      {
+        chainType: "stellar",
+        type: "smart",
+        owner: `email:${config.walletEmail}`,
+        config: {
+          adminSigner: {
+            type: "external-wallet",
+            address: stellarAddress,
+          },
+        },
+      }
+    );
     console.log(`  Created Stellar wallet: ${wallet.address}`);
     return wallet.address;
   }

@@ -17,9 +17,15 @@ importers:
       '@sodax/sdk':
         specifier: 1.2.7-beta
         version: 1.2.7-beta(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
+      '@sodax/types':
+        specifier: ^1.2.7-beta
+        version: 1.2.7-beta
       '@sodax/wallet-sdk-core':
         specifier: 1.2.7-beta
         version: 1.2.7-beta(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(starknet@8.9.2)(typescript@5.9.3)(utf-8-validate@6.0.6)(zod@3.25.76)
+      '@stellar/stellar-base':
+        specifier: ^12.1.1
+        version: 12.1.1
       dotenv:
         specifier: ^16.4.7
         version: 16.6.1
