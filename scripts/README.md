@@ -1,8 +1,8 @@
 # Bridge & Wallet Scripts
 
-This directory contains CLI tools for managing wallets and interacting with various bridge protocols programmatically.
+CLI tools for managing wallets and interacting with cross-chain bridge protocols from a server-side Node.js environment.
 
-## 🛠️ Prerequisites & Setup
+## Prerequisites & Setup
 
 1. **Install dependencies:**
 
@@ -10,61 +10,98 @@ This directory contains CLI tools for managing wallets and interacting with vari
    npm install
    ```
 
-2. **Environment Variables (.env):**
-   Configure the required variables to operate with the different protocols:
-   - `EVM_PRIVATE_KEY`: Private key for the Base (EVM) wallet.
-   - `BASE_RPC_URL`: RPC node URL for Base.
-   - `CROSSMINT_SERVER_API_KEY`: API Key for Smart Wallet management.
-   - `NEAR_INTENTS_JWT`: JWT token for the Near Intents/Defuse protocol.
+2. **Environment variables (`.env`):**
+
+   | Variable | Required | Description |
+   | --- | --- | --- |
+   | `EVM_PRIVATE_KEY` | Yes | EVM private key — controls the Crossmint smart wallet as `adminSigner` |
+   | `BASE_RPC_URL` | Yes | JSON-RPC endpoint for Base mainnet |
+   | `CROSSMINT_SERVER_API_KEY` | Yes | Crossmint server-side API key (`sk_...`) |
+   | `CROSSMINT_BASE_URL` | Yes | Crossmint API base URL (e.g. `https://www.crossmint.com`) |
+   | `WALLET_EMAIL` | Yes | Email identity used to own the Crossmint smart wallet |
+   | `BRIDGE_AMOUNT` | Yes | Amount of USDC to bridge (e.g. `1.0`) |
+   | `CHAIN` | No | EVM chain name (default: `base`) |
+   | `NEAR_INTENTS_JWT` | No | JWT for Near Intents / Defuse protocol only |
 
 ---
 
-## 🚀 Available Bridge Protocols
+## Bridge Scripts
 
-We have integrated multiple protocols to ensure redundancy and efficiency in cross-chain asset movement.
+### Sodax + Crossmint (Primary)
 
-### 1. Sodax Solver
+Full server-side bridge from Base USDC to Stellar USDC. Uses Crossmint smart wallet
+as the EVM signer and Sodax intent protocol for cross-chain delivery.
 
-An intent-based protocol using solvers to optimize transaction speed and cost.
+```bash
+# Auto-discover Stellar recipient from Crossmint (same email)
+npm run sodax-crossmint
 
-| Command | Purpose | Status |
+# Override Stellar recipient address
+npm run sodax-crossmint -- <STELLAR_ADDRESS>
+```
+
+**Flow:** ERC-20 approve → Sodax `createIntent` on Base → Sonic hub → Solver fills → USDC on Stellar.
+
+**First run:** If the wallet has insufficient ETH or USDC, the script prints the wallet address
+and exits with funding instructions. Fund the displayed address and re-run.
+
+See [`SODAX_CROSSMINT_POC.md`](./SODAX_CROSSMINT_POC.md) for the full architecture breakdown,
+design decisions, and troubleshooting guide.
+
+| Command | Description | Status |
 | --- | --- | --- |
-| `npm run sodax-swap -- <ADDR>` | **Solver Flow**: Automated Swap + Bridge. | 🚧 Recurrent Status 2 |
-| `npm run sodax-status -- <HASH>` | **Monitoring**: Debugging and payload decoding. | ✅ Operational |
+| `npm run sodax-crossmint` | Base USDC → Stellar USDC via Sodax intents + Crossmint wallet | ✅ Operational |
+| `npm run sodax-swap` | Swap-only on Base (no bridge, direct EVM wallet) | ✅ Operational |
+| `npm run sodax-status -- <TX_HASH>` | Poll and decode an existing Sodax intent status | ✅ Operational |
 
-### 2. Allbridge Core
+### Allbridge Core
 
-Direct integration with Allbridge Core for liquidity transfers between EVM and Stellar.
+Direct SDK integration for EVM → Stellar liquidity transfers.
 
-| Command | Purpose | Status |
+| Command | Description | Status |
 | --- | --- | --- |
-| `npm run allbridge-bridge` | Executes the full bridge flow using Allbridge SDK. | ⚠️ Operational: not supporting C addresses |
+| `npm run allbridge-bridge` | Bridge via Allbridge Core SDK | ⚠️ Operational — no C-address support |
 
-### 3. Near Intents (Defuse)
+### Near Intents (Defuse)
 
-Cross-chain intent messaging protocol.
+Cross-chain intent messaging via the Near/Defuse protocol.
 
-| Command | Purpose | Status |
+| Command | Description | Status |
 | --- | --- | --- |
-| `npm run near-intents` | Bridge based on the Defuse/Near Intents protocol. | ⚠️ Operational: not supporting C addresses |
+| `npm run near-intents` | Bridge via Near Intents | ⚠️ Operational — no C-address support |
 
 ---
 
-## 🛡️ Modular Bridge (Crossmint)
+## Wallet Utilities
 
-This script implements a modular architecture designed to swap the underlying bridge protocol while maintaining the same wallet infrastructure.
-
-| Command | Purpose | Status |
+| Command | Description | Status |
 | --- | --- | --- |
-| `npm run crossmint-bridge` | Crossmint-orchestrated bridge with support for swappable modules. | 🧪 Experimental: investigation in progress |
+| `npm run base-wallet` | Create / fund / inspect Crossmint smart wallet on Base | ✅ Stable |
+| `npm run stellar-wallet` | Create / inspect Crossmint wallet on Stellar | ✅ Stable |
 
 ---
 
-## 👛 Wallet Management (Crossmint)
+## Architecture (sodax-crossmint)
 
-| Command | Purpose | Status |
-| --- | --- | --- |
-| `npm run base-wallet` | Manage Smart Wallets on **Base** (EVM). | ✅ Stable |
-| `npm run stellar-wallet` | Manage Smart Wallets on **Stellar** (Soroban). | ✅ Stable |
+```
+sodax-crossmint.ts
+  ├── CrossmintRestClient          REST client for Crossmint Wallet API v2025-06-09
+  │     ├── getOrCreateEvmScriptsWallet()   Creates wallet with external-wallet adminSigner
+  │     ├── getStellarWalletAddress()       Looks up email-linked Stellar wallet
+  │     └── sendTransactionAndGetHash()     Signs + submits EVM txs; polls for receipt
+  ├── CrossmintEvmSodaxAdapter     Implements IEvmWalletProvider for Sodax SDK
+  └── SodaxBridgeService           getQuote → executeSwap → pollStatus
+        └── sodax.swaps.*          Allowance check, approve, createIntent, getStatus
+```
 
----
+Key files:
+
+| File | Purpose |
+| --- | --- |
+| `src/bridge/sodax-crossmint.ts` | Entry point — orchestrates the full bridge flow |
+| `src/shared/crossmint-rest.ts` | Thin REST client for Crossmint Wallet API |
+| `src/shared/crossmint-adapters.ts` | Adapter: Crossmint REST → Sodax `IEvmWalletProvider` |
+| `src/shared/sodax-service.ts` | `SodaxBridgeService` — quote / swap / poll |
+| `src/shared/sodax.ts` | Sodax SDK init + shared utilities |
+| `src/shared/bridge-types.ts` | Shared interfaces (`IBridgeService`, `SwapParams`, etc.) |
+| `src/shared/config.ts` | Centralized env config |
