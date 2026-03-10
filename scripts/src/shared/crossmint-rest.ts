@@ -1,4 +1,5 @@
 import { ethers } from "ethers";
+import { CrossmintWallets, createCrossmint } from "@crossmint/wallets-sdk";
 import { config } from "./config.js";
 
 const API_VERSION = "2025-06-09";
@@ -129,8 +130,11 @@ export class CrossmintRestClient {
 
   /**
    * Returns the Stellar wallet address linked to the configured email.
-   * Used only as a recipient address — no transactions sent from it.
-   * Tries to GET an existing wallet first; if not found, creates a custodial one.
+   * Used only as a recipient address — no transactions are sent from it.
+   *
+   * Tries to GET an existing wallet first via REST. If not found, falls back to
+   * CrossmintWallets SDK createWallet (Soroban smart wallet) since the REST API
+   * v2025-06-09 POST /wallets only accepts chainType: "evm".
    */
   async getStellarWalletAddress(): Promise<string> {
     const locator = `email:${config.walletEmail}:stellar`;
@@ -142,23 +146,18 @@ export class CrossmintRestClient {
       return wallet.address;
     } catch (err: any) {
       if (!err.message?.includes("404")) throw err;
-
-      console.log(`  Stellar wallet not found, creating custodial wallet...`);
-      try {
-        const wallet = await this.request<{ address: string }>(
-          "POST",
-          "wallets",
-          { chainType: "stellar", type: "mpc", owner: `email:${config.walletEmail}` }
-        );
-        return wallet.address;
-      } catch (createErr: any) {
-        throw new Error(
-          `Could not create Stellar wallet: ${createErr.message}\n` +
-          `Pass your Stellar address as a CLI argument:\n` +
-          `  npm run sodax-crossmint -- <YOUR_STELLAR_ADDRESS>`
-        );
-      }
     }
+
+    console.log(`  Stellar wallet not found, creating via CrossmintWallets SDK...`);
+    const crossmint = createCrossmint({ apiKey: this.apiKey });
+    const wallets = CrossmintWallets.from(crossmint);
+    const wallet = await wallets.createWallet({
+      chain: "stellar",
+      signer: { type: "api-key" },
+      owner: `email:${config.walletEmail}`,
+    });
+    console.log(`  Created Stellar wallet: ${wallet.address}`);
+    return wallet.address;
   }
 
   /**
