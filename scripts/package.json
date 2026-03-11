@@ -10,7 +10,8 @@
     "allbridge-bridge": "tsx src/bridge/allbridge-bridge.ts",
     "sodax-swap": "tsx src/bridge/sodax-swap.ts",
     "sodax-status": "tsx src/bridge/sodax-status.ts",
-    "sodax-crossmint": "tsx src/bridge/sodax-crossmint.ts"
+    "sodax-crossmint": "tsx src/bridge/sodax-crossmint.ts",
+    "demo": "tsx src/bridge/sodax-crossmint.ts"
   },
   "dependencies": {
     "@allbridge/bridge-core-sdk": "^3.29.1",

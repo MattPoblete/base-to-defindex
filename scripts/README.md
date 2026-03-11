@@ -37,29 +37,11 @@ CLI tools for managing wallets and interacting with cross-chain bridge protocols
 | `SOROBAN_RPC_URL` | `https://rpc.stellar.org:443` | Soroban RPC for Stellar smart contract calls. |
 | `STELLAR_HORIZON_URL` | `https://horizon.stellar.org` | Stellar Horizon for account and transaction queries. |
 
-#### DeFindex vault — optional
-
-| Variable | Description |
-| --- | --- |
-| `DEFINDEX_VAULT_ADDRESS` | Soroban contract address of the DeFindex vault. If set, USDC received on Stellar is automatically deposited after bridging. |
-| `DEFINDEX_API_URL` | DeFindex API base URL (defaults to `https://api.defindex.io`). |
-| `DEFINDEX_API_KEY` | DeFindex API key, if required by the target vault. |
-
 #### Near Intents — optional
 
 | Variable | Description |
 | --- | --- |
 | `NEAR_INTENTS_JWT` | JWT for the Near Intents / Defuse 1Click API. Only needed for the `near-intents` script. |
-
-### Generate keys
-
-```bash
-# EVM private key
-node -e "const {ethers}=require('ethers'); console.log(ethers.Wallet.createRandom().privateKey)"
-
-# Stellar keypair (secret + public)
-node -e "import('@stellar/stellar-base').then(({Keypair})=>{ const kp=Keypair.random(); console.log('secret:',kp.secret(),'\npublic:',kp.publicKey()) })"
-```
 
 ---
 
@@ -75,6 +57,7 @@ By default, authorizing a transaction triggers an OTP to the owner's email. For 
 Setting `adminSigner` to `type: "external-wallet"` with a local private key overrides that: **the private key becomes the sole transaction signer**, and no email interaction is ever required. The ownership identity (email) is kept only because Crossmint requires it for wallet creation.
 
 This pattern works for both chains:
+
 - **EVM (Base):** `EVM_PRIVATE_KEY` → Ethereum wallet → adminSigner on the Base smart wallet.
 - **Stellar (Soroban):** `STELLAR_SERVER_KEY` → ed25519 keypair → adminSigner on the Stellar smart wallet.
 
@@ -95,17 +78,17 @@ pnpm sodax-crossmint
 pnpm sodax-crossmint -- <STELLAR_ADDRESS>
 ```
 
-**Flow:** ERC-20 approve → Sodax `createIntent` on Base → Sonic hub → Solver fills → USDC on Stellar → (optional) DeFindex vault deposit.
+**Flow:** ERC-20 approve → Sodax `createIntent` on Base → Sonic hub → Solver fills → USDC on Stellar → DeFindex vault deposit.
 
 **First run:** The script checks that the EVM wallet holds at least `0.001 ETH` (gas) and the configured USDC amount. If either is short, it prints the wallet address and exits with funding instructions. Fund the address and re-run.
 
 | Command | Description | Status |
 | --- | --- | --- |
-| `pnpm sodax-crossmint` | Base USDC → Stellar USDC via Sodax intents + Crossmint wallets | ✅ Operational |
+| `pnpm sodax-crossmint or pnpm demo` | Base USDC → Stellar USDC via Sodax intents + Crossmint wallets | ✅ Operational |
 | `pnpm sodax-swap` | Swap-only on Base via Sodax (direct EVM wallet, no bridge) | ✅ Operational |
 | `pnpm sodax-status -- <TX_HASH>` | Poll and decode an existing Sodax intent status | ✅ Operational |
 
-### Allbridge Core
+### 🚧 Allbridge Core
 
 Direct SDK integration for EVM → Stellar liquidity transfers.
 
@@ -113,7 +96,7 @@ Direct SDK integration for EVM → Stellar liquidity transfers.
 | --- | --- | --- |
 | `pnpm allbridge-bridge` | Bridge via Allbridge Core SDK | ⚠️ Operational — no C-address support |
 
-### Near Intents (Defuse)
+### 🚧 Near Intents (Defuse)
 
 Cross-chain intent messaging via the Near/Defuse protocol.
 
@@ -123,7 +106,7 @@ Cross-chain intent messaging via the Near/Defuse protocol.
 
 ---
 
-## Wallet Utilities
+## ⚙️ Wallet Utilities
 
 | Command | Description | Status |
 | --- | --- | --- |
@@ -134,7 +117,7 @@ Cross-chain intent messaging via the Near/Defuse protocol.
 
 ## Architecture (sodax-crossmint)
 
-```
+```md
 sodax-crossmint.ts
   ├── CrossmintRestClient          REST client for Crossmint Wallet API v2025-06-09
   │     ├── getOrCreateEvmWallet()         GET email:{email}:evm; creates with EVM external-wallet adminSigner if missing
