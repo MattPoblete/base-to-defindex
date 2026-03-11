@@ -1,10 +1,10 @@
-import { CrossmintAASDK } from "@crossmint/wallets-sdk";
+import { CrossmintWallets, createCrossmint } from "@crossmint/wallets-sdk";
 import { ethers } from "ethers";
 import { config } from "../shared/config.js";
 
 /**
  * Example script to:
- * 1. Initialize Crossmint AA SDK
+ * 1. Initialize Crossmint Wallets SDK
  * 2. Create/Retrieve a Smart Wallet for a user
  * 3. Fetch balances
  * 4. Transfer tokens (Bridge simulation)
@@ -15,17 +15,21 @@ async function main() {
   console.log("──────────────────────────────────────────────────────");
 
   // [1] Initialize SDK
-  const sdk = new CrossmintAASDK({
-    apiKey: config.apiKey,
-    baseUrl: config.baseUrl,
-  });
+  const crossmint = createCrossmint({ apiKey: config.clientApiKey || config.apiKey });
+  const sdk = CrossmintWallets.from(crossmint);
+
+  const evmSigner = new ethers.Wallet(config.evmPrivateKey);
 
   // [2] Get or Create Wallet
   console.log(`\n[1/4] Getting wallet for: ${config.walletEmail}`);
-  const wallet = await sdk.getOrCreateWallet(
-    { email: config.walletEmail },
-    config.chain
-  );
+  const wallet = await sdk.getOrCreateWallet({
+    chain: config.chain as any,
+    owner: `email:${config.walletEmail}`,
+    signer: {
+      type: "external-wallet",
+      address: evmSigner.address,
+    },
+  });
 
   const address = await wallet.getAddress();
   console.log(`  Wallet Address: ${address}`);
