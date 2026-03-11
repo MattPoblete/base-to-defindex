@@ -324,12 +324,6 @@ BASE_RPC_URL=https://mainnet.base.org
 # Bridge amount
 BRIDGE_AMOUNT=0.1                   # In USDC (6 decimals internally)
 
-# DeFindex (optional — omit to skip vault deposit)
-DEFINDEX_VAULT_ADDRESS=CA2FIP...    # Soroban vault contract address
-DEFINDEX_API_URL=https://api.defindex.io
-DEFINDEX_API_KEY=...
-```
-
 **Important:** `CROSSMINT_SERVER_API_KEY` must start with `sk_` to be recognized as a
 server key by Crossmint. Keys starting with `ck_` are client keys and lack wallet signing
 permissions.
@@ -355,60 +349,60 @@ Examples:
 ```text
 Script                  Crossmint API          Base RPC         Sodax SDK        Stellar/DeFindex
   │                          │                    │                 │                    │
-  │── GET EVM wallet ──────►│                    │                 │                    │
-  │◄─ 404 ─────────────────│                    │                 │                    │
-  │── POST create EVM w. ──►│                    │                 │                    │
-  │   (adminSigner=ext-w)   │                    │                 │                    │
-  │◄─ { address: 0x291d } ─│                    │                 │                    │
+  │── GET EVM wallet ───────►│                    │                 │                    │
+  │◄─ 404 ───────────────────│                    │                 │                    │
+  │── POST create EVM w. ───►│                    │                 │                    │
+  │   (adminSigner=ext-w)    │                    │                 │                    │
+  │◄─ { address: 0x291d } ───│                    │                 │                    │
   │                          │                    │                 │                    │
-  │── GET stellar wallet ──►│                    │                 │                    │
-  │◄─ 404 ─────────────────│                    │                 │                    │
-  │── POST create stellar w.►│                   │                 │                    │
-  │   (adminSigner=GKEY)    │                    │                 │                    │
-  │◄─ { address: G... } ───│                    │                 │                    │
+  │── GET stellar wallet ───►│                    │                 │                    │
+  │◄─ 404 ───────────────────│                    │                 │                    │
+  │── POST create stellar w.►│                    │                 │                    │
+  │   (adminSigner=GKEY)     │                    │                 │                    │
+  │◄─ { address: G... } ─────│                    │                 │                    │
   │                          │                    │                 │                    │
-  │── balanceOf(0x291d) ────────────────────────►│                 │                    │
-  │◄─ USDC balance ─────────────────────────────│                 │                    │
+  │── balanceOf(0x291d) ─────────────────────────►│                 │                    │
+  │◄─ USDC balance ───────────────────────────────│                 │                    │
   │                          │                    │                 │                    │
-  │── getQuote() ────────────────────────────────────────────────►│                    │
-  │◄─ { amountOut } ────────────────────────────────────────────│                    │
+  │── getQuote() ──────────────────────────────────────────────────►│                    │
+  │◄─ { amountOut } ────────────────────────────────────────────────│                    │
   │                          │                    │                 │                    │
-  │── isAllowanceValid() ────────────────────────────────────────►│                    │
-  │◄─ false ────────────────────────────────────────────────────│                    │
+  │── isAllowanceValid() ──────────────────────────────────────────►│                    │
+  │◄─ false ────────────────────────────────────────────────────────│                    │
   │                          │                    │                 │                    │
-  │── POST /transactions ──►│                    │                 │                    │
+  │── POST /transactions ───►│                    │                 │                    │
   │   (ERC-20 approve)       │                    │                 │                    │
-  │◄─ { id, awaiting } ────│                    │                 │                    │
-  │── signMessage(hex bytes)  │                    │                 │                    │
-  │── POST /approvals ─────►│                    │                 │                    │
+  │◄─ { id, awaiting } ──────│                    │                 │                    │
+  │── signMessage(hex bytes) │                    │                 │                    │
+  │── POST /approvals ──────►│                    │                 │                    │
   │                          │── broadcast tx ───►│                 │                    │
-  │── GET /transactions ───►│                    │                 │                    │
-  │◄─ { onChain.txId } ────│                    │                 │                    │
+  │── GET /transactions ────►│                    │                 │                    │
+  │◄─ { onChain.txId } ──────│                    │                 │                    │
   │── waitForReceipt ────────────────────────────►│                 │                    │
   │                          │                    │                 │                    │
-  │── POST /transactions ──►│                    │                 │                    │
+  │── POST /transactions ───►│                    │                 │                    │
   │   (createIntent)         │                    │                 │                    │
-  │◄─ { id, awaiting } ────│                    │                 │                    │
-  │── signMessage(hex bytes)  │                    │                 │                    │
-  │── POST /approvals ─────►│                    │                 │                    │
-  │◄─ confirmed ───────────│                    │                 │                    │
+  │◄─ { id, awaiting } ──────│                    │                 │                    │
+  │── signMessage(hex bytes) │                    │                 │                    │
+  │── POST /approvals ──────►│                    │                 │                    │
+  │◄─ confirmed ─────────────│                    │                 │                    │
   │                          │                    │                 │                    │
-  │── getStatus(intentHash) ─────────────────────────────────────►│                    │
+  │── getStatus(intentHash) ───────────────────────────────────────►│                    │
   │   (polling every 10s)    │                    │   Sonic hub     │                    │
-  │◄─ SOLVED ───────────────────────────────────────────────────│                    │
-  │── getFilledIntent(fillTxHash) ───────────────────────────────►│                    │
-  │◄─ { receivedOutput } ───────────────────────────────────────│                    │
-  │── getSolvedIntentPacket() ───────────────────────────────────►│                    │
-  │◄─ { dst_tx_hash } ──────────────────────────────────────────│                    │
+  │◄─ SOLVED ───────────────────────────────────────────────────────│                    │
+  │── getFilledIntent(fillTxHash) ─────────────────────────────────►│                    │
+  │◄─ { receivedOutput } ───────────────────────────────────────────│                    │
+  │── getSolvedIntentPacket() ─────────────────────────────────────►│                    │
+  │◄─ { dst_tx_hash } ──────────────────────────────────────────────│                    │
   │                          │                    │                 │                    │
-  │── POST /transactions ──►│                    │                 │                    │
+  │── POST /transactions ───►│                    │                 │                    │
   │   (contract-call deposit)│                    │                 │                    │
-  │◄─ { id, awaiting } ────│                    │                 │                    │
-  │── sign(base64 XDR)        │                    │                 │                    │
-  │── POST /approvals ─────►│                    │                 │                    │
-  │                          │─── submit to ──────────────────────────────────────────►│
+  │◄─ { id, awaiting } ──────│                    │                 │                    │
+  │── sign(base64 XDR)       │                    │                 │                    │
+  │── POST /approvals ──────►│                    │                 │                    │
+  │                          │─── submit to ────────────────────────────────────────────►│
   │                          │    Soroban         │                 │                    │
-  │◄─ { onChain.txId } ────────────────────────────────────────────────────────────────│
+  │◄─ { onChain.txId } ──────────────────────────────────────────────────────────────────│
 ```
 
 ---
