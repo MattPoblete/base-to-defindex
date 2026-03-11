@@ -8,7 +8,7 @@ A cross-chain bridge solution to move assets (primarily USDC) from **Base (L2)**
 
 This repository contains two components:
 
-- **`dapp/`**: Next.js 15 frontend providing a user-facing bridge UI powered by Sodax.
+- **🚧`dapp/`**: Next.js 15 frontend providing a user-facing bridge UI powered by Sodax (Still work in progress).
 - **`scripts/`**: TypeScript CLI tools for server-side cross-chain operations:
   - **`bridge/`**: Cross-chain transfer scripts (Sodax, Allbridge, Near Intents).
   - **`wallets/`**: Smart wallet management for Base and Stellar via Crossmint.
@@ -27,16 +27,6 @@ This repository contains two components:
 
 - Node.js v18+
 - pnpm
-
-### Dapp (Web Interface)
-
-```bash
-cd dapp
-pnpm install
-cp .env.example .env.local
-# Configure .env.local
-pnpm dev
-```
 
 ### Scripts (CLI Tools)
 
@@ -76,6 +66,16 @@ pnpm near-intents       # Near Intents / Defuse protocol
 ```bash
 pnpm base-wallet        # Manage Crossmint EVM smart wallet
 pnpm stellar-wallet     # Manage Crossmint Stellar smart wallet
+```
+
+### Dapp (Web Interface)
+
+```bash
+cd dapp
+pnpm install
+cp .env.example .env.local
+# Configure .env.local
+pnpm dev
 ```
 
 ## Documentation
