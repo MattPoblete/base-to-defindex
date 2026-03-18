@@ -65,6 +65,15 @@ export const config = {
   defindexApiUrl: process.env.DEFINDEX_API_URL ?? "https://api.defindex.io",
   defindexVaultAddress: SOROSWAP_EARN_USDC_VAULT,
   defindexApiKey: process.env.DEFINDEX_API_KEY ?? "",
+
+  // Privy server-wallet config
+  privy: {
+    appId: process.env.PRIVY_APP_ID ?? "",
+    appSecret: process.env.PRIVY_APP_SECRET ?? "",
+    // Dashboard-generated format: "wallet-auth:<base64-PKCS8-DER>"
+    // Public key is derived from this at runtime — no need to store it separately.
+    authorizationPrivateKey: process.env.PRIVY_AUTHORIZATION_PRIVATE_KEY ?? "",
+  },
 };
 
 // Validate Crossmint env vars (warn instead of throw so non-Crossmint scripts can import config)

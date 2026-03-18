@@ -1,0 +1,162 @@
+# Privy Wallet POC — Base Sepolia & Stellar Testnet
+
+## Overview
+
+Two proof-of-concept scripts that create server-controlled wallets via Privy and execute
+transactions without any user interaction or OTP, using **Authorization Keys** as wallet owners.
+This mirrors the Crossmint `external-wallet` adminSigner pattern.
+
+---
+
+## Architecture
+
+### Chain Tiers
+
+| Chain   | Tier | SDK Support                          | Broadcast   |
+|---------|------|--------------------------------------|-------------|
+| Base    | 3    | Full (`sendTransaction`, gas, etc.)  | Privy       |
+| Stellar | 2    | Raw signing only (`rawSign`)         | Horizon API |
+
+### Server-side Automation — Authorization Key Pattern
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Your Server (this script)                              │
+│                                                         │
+│  P-256 Private Key ──► signs every Privy API request    │
+│  P-256 Public Key  ──► registered as wallet OWNER       │
+└───────────────┬─────────────────────────────────────────┘
+                │  HTTPS + privy-authorization-signature
+                ▼
+┌─────────────────────────────────────────────────────────┐
+│  Privy TEE (Trusted Execution Environment)              │
+│                                                         │
+│  Verifies P-256 signature → executes wallet action      │
+│  Wallet private key NEVER leaves TEE                    │
+└─────────────────────────────────────────────────────────┘
+```
+
+No user, no OTP, no interactive approval at any step.
+
+---
+
+## Prerequisites
+
+### 1. Privy Dashboard setup
+- Create an app at https://dashboard.privy.io
+- Enable **TEE execution** (required for Stellar / Tier 2 chains)
+- Copy **App ID** and **App Secret**
+
+### 2. Generate Authorization Key
+```bash
+cd scripts
+pnpm privy-keygen
+```
+Copy both keys to `.env`, then register the **public key** in:
+Dashboard → Your App → Wallets → Authorization keys → New key
+
+---
+
+## Quick Start
+
+```bash
+cd scripts
+cp .env.example .env
+# Fill in PRIVY_APP_ID, PRIVY_APP_SECRET, PRIVY_AUTHORIZATION_PRIVATE_KEY, PRIVY_AUTHORIZATION_PUBLIC_KEY
+
+# POC 1: Base Sepolia EVM wallet
+pnpm privy-base
+
+# POC 2: Stellar testnet wallet
+pnpm privy-stellar
+```
+
+---
+
+## POC 1 — Base Sepolia (EVM)
+
+**File:** `src/privy/privy-base-poc.ts`
+**Wallet module:** `src/wallets/privy-base-wallet.ts`
+
+### Flow
+```
+1. privy.wallets().create({ chain_type: 'ethereum', owner: { public_key }, idempotency_key })
+   └─► returns same wallet on repeated runs
+
+2. ethers.JsonRpcProvider → getBalance(address)
+
+3. privy.wallets().ethereum().sendTransaction(walletId, {
+     caip2: 'eip155:84532',           // Base Sepolia
+     params: { transaction: { to, value: '0x0', data: '0x' } },
+     authorization_context: { authorization_private_keys: [privKey] }
+   })
+   └─► Privy handles gas estimation + broadcast
+```
+
+### Fund the wallet
+Get Base Sepolia ETH from:
+- https://www.alchemy.com/faucets/base-sepolia
+- https://faucet.quicknode.com/base/sepolia
+
+---
+
+## POC 2 — Stellar Testnet
+
+**File:** `src/privy/privy-stellar-poc.ts`
+**Wallet module:** `src/wallets/privy-stellar-wallet.ts`
+
+### Flow
+```
+1. privy.wallets().create({ chain_type: 'stellar', owner: { public_key }, idempotency_key })
+
+2. GET https://horizon-testnet.stellar.org/accounts/{address}
+   └─► fetch XLM balance + sequence number
+
+3. TransactionBuilder (stellar-base) → build payment transaction → transaction.hash()
+
+4. privy.wallets().rawSign(walletId, { params: { hash: '0x' + txHashHex }, authorization_context })
+   └─► returns 64-byte Ed25519 signature (0x-prefixed hex)
+
+5. Keypair.fromPublicKey(address).signatureHint() + xdr.DecoratedSignature
+   └─► attach signature to transaction envelope
+
+6. POST https://horizon-testnet.stellar.org/transactions  (XDR envelope)
+   └─► returns transaction hash
+```
+
+### Fund the wallet
+```bash
+curl "https://friendbot.stellar.org/?addr=<YOUR_STELLAR_ADDRESS>"
+```
+Or visit: https://laboratory.stellar.org/#account-creator?network=test
+
+---
+
+## Comparison: Privy vs Crossmint
+
+| Feature                   | Privy                            | Crossmint                        |
+|---------------------------|----------------------------------|----------------------------------|
+| Server auth primitive     | P-256 Authorization Key          | EVM private key (external-wallet) |
+| EVM wallet type           | EOA (native private key in TEE)  | Smart wallet (ERC-4337)          |
+| Stellar support           | Tier 2 (raw sign)                | Full (smart wallet via Soroban)  |
+| Gas sponsorship (EVM)     | Yes (`sponsor: true`)            | Paid by smart wallet             |
+| No-user automation        | Yes (authorization key as owner) | Yes (external-wallet signer)     |
+| SDK                       | `@privy-io/node`                 | `@crossmint/wallets-sdk` + REST  |
+
+---
+
+## File Structure
+
+```
+scripts/src/
+├── shared/
+│   ├── config.ts              # Extended with privy: { appId, appSecret, ... }
+│   └── privy-client.ts        # PrivyClient singleton + buildAuthContext()
+├── wallets/
+│   ├── privy-base-wallet.ts   # EVM: create, balance, sendTransaction
+│   └── privy-stellar-wallet.ts# Stellar: create, balance, rawSign + broadcast
+└── privy/
+    ├── generate-auth-key.ts   # One-time keypair generation utility
+    ├── privy-base-poc.ts      # POC 1 entry point
+    └── privy-stellar-poc.ts   # POC 2 entry point
+```

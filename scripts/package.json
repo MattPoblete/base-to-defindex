@@ -11,15 +11,19 @@
     "sodax-swap": "tsx src/bridge/sodax-swap.ts",
     "sodax-status": "tsx src/bridge/sodax-status.ts",
     "sodax-crossmint": "tsx src/bridge/sodax-crossmint.ts",
-    "demo": "tsx src/bridge/sodax-crossmint.ts"
+    "demo": "tsx src/bridge/sodax-crossmint.ts",
+    "privy-keygen": "tsx src/privy/generate-auth-key.ts",
+    "privy-base": "tsx src/privy/privy-base-poc.ts",
+    "privy-stellar": "tsx src/privy/privy-stellar-poc.ts"
   },
   "dependencies": {
     "@allbridge/bridge-core-sdk": "^3.29.1",
     "@crossmint/wallets-sdk": "^0.19.0",
-    "@stellar/stellar-base": "^12.1.1",
+    "@privy-io/node": "^0.11.0",
     "@sodax/sdk": "1.2.7-beta",
     "@sodax/types": "^1.2.7-beta",
     "@sodax/wallet-sdk-core": "1.2.7-beta",
+    "@stellar/stellar-base": "^12.1.1",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.0"
   },
