@@ -69,11 +69,14 @@ pnpm privy-base
 
 # POC 2: Stellar testnet wallet
 pnpm privy-stellar
+
+# POC 3: Defindex XLM vault deposit (Stellar testnet)
+pnpm privy-defindex
 ```
 
 ---
 
-## POC 1 — Base Sepolia (EVM)
+## POC 1 — Base (EVM)
 
 **File:** `src/privy/privy-base-poc.ts`
 **Wallet module:** `src/wallets/privy-base-wallet.ts`
@@ -94,10 +97,7 @@ pnpm privy-stellar
 ```
 
 ### Fund the wallet
-Get Base Sepolia ETH from:
-- https://www.alchemy.com/faucets/base-sepolia
-- https://faucet.quicknode.com/base/sepolia
-
+Send at least 0.001 ETH
 ---
 
 ## POC 2 — Stellar Testnet
@@ -145,18 +145,59 @@ Or visit: https://laboratory.stellar.org/#account-creator?network=test
 
 ---
 
+## POC 3 — Defindex XLM Vault Deposit (Stellar Testnet)
+
+**File:** `src/privy/privy-defindex-poc.ts`
+**Wallet module:** `src/wallets/privy-defindex-wallet.ts`
+**Vault:** `CCLV4H7WTLJQ7ATLHBBQV2WW3OINF3FOY5XZ7VPHZO7NH3D2ZS4GFSF6` (XLM, testnet)
+
+### Flow
+```
+1. getOrCreateStellarWallet() — reuses POC 2 wallet (same idempotency_key)
+
+2. Auto-fund via Friendbot if balance < 15 XLM
+
+3. POST https://api.defindex.io/vault/{addr}/deposit?network=testnet
+   body: { amounts: ["100000000"], caller: address, invest: true, slippageBps: 50 }
+   └─► returns { xdr: "unsigned XDR..." }
+
+4. TransactionBuilder.fromXDR(xdr, Networks.TESTNET) → transaction.hash()
+   └─► txHashHex = "0x" + hex
+
+5. privy.wallets().rawSign(walletId, { hash: txHashHex }, authorization_context)
+   └─► 64-byte Ed25519 signature
+
+6. Attach xdr.DecoratedSignature to envelope (same as POC 2)
+
+7. POST https://api.defindex.io/send?network=testnet { xdr: signedXdr }
+   └─► { txHash }
+```
+
+### Key difference from POC 2
+POC 2 builds the Stellar payment transaction itself. POC 3 delegates Soroban contract
+call construction to the Defindex API — we only sign the hash and submit the result.
+
+### Required env vars
+```
+DEFINDEX_API_KEY=<Bearer token from Defindex team>
+```
+
+---
+
 ## File Structure
 
 ```
 scripts/src/
 ├── shared/
-│   ├── config.ts              # Extended with privy: { appId, appSecret, ... }
+│   ├── config.ts              # Extended with privy: { ... } + XLM_DEFINDEX_VAULT_TESTNET
 │   └── privy-client.ts        # PrivyClient singleton + buildAuthContext()
 ├── wallets/
 │   ├── privy-base-wallet.ts   # EVM: create, balance, sendTransaction
-│   └── privy-stellar-wallet.ts# Stellar: create, balance, rawSign + broadcast
+│   ├── privy-stellar-wallet.ts# Stellar: create, balance, rawSign + broadcast
+│   └── privy-defindex-wallet.ts # Defindex: buildDepositXdr + rawSign + submit
 └── privy/
     ├── generate-auth-key.ts   # One-time keypair generation utility
     ├── privy-base-poc.ts      # POC 1 entry point
-    └── privy-stellar-poc.ts   # POC 2 entry point
+    ├── privy-stellar-poc.ts   # POC 2 entry point
+    └── privy-defindex-poc.ts  # POC 3 entry point
 ```

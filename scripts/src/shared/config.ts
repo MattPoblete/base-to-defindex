@@ -9,6 +9,7 @@ const env = process.env.CROSSMINT_ENV ?? "staging";
 const isStaging = env === "staging";
 
 export const SOROSWAP_EARN_USDC_VAULT="CA2FIPJ7U6BG3N7EOZFI74XPJZOEOD4TYWXFVCIO5VDCHTVAGS6F4UKK"
+export const XLM_DEFINDEX_VAULT_TESTNET = "CCLV4H7WTLJQ7ATLHBBQV2WW3OINF3FOY5XZ7VPHZO7NH3D2ZS4GFSF6"
 
 export const config = {
   apiKey: process.env.CROSSMINT_SERVER_API_KEY ?? "",
