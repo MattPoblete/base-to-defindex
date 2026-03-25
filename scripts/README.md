@@ -19,47 +19,39 @@ CLI tools for managing wallets and interacting with cross-chain bridge protocols
 
 ### Environment Variables
 
-#### Crossmint — required
+#### Crossmint — required for Crossmint flow
 
 | Variable | Description |
 | --- | --- |
-| `CROSSMINT_ENV` | `staging` or `production`. Controls which Crossmint API host and which chains are used (staging → Base Sepolia / testnet; production → Base mainnet / Stellar mainnet). |
-| `CROSSMINT_SERVER_API_KEY` | Server-side API key from the [Crossmint console](https://www.crossmint.com/console/projects/apiKeys). Must start with `sk_staging_` or `sk_production_`. |
-| `CROSSMINT_WALLET_EMAIL` | Email used as the **owner identity** of the Crossmint smart wallets. Crossmint requires an owner identity; we use email, but actual transaction signing is delegated to the keys below — no email OTP is ever sent. |
-| `EVM_PRIVATE_KEY` | EVM private key (hex, `0x...`). Registered as the `adminSigner` on the Base EVM smart wallet. See [Why external-wallet?](#why-external-wallet) below. |
-| `STELLAR_SERVER_KEY` | Stellar ed25519 secret key (`S...`). Its public key is registered as the `adminSigner` on the Stellar smart wallet. Same rationale as `EVM_PRIVATE_KEY`. |
+| `CROSSMINT_ENV` | `staging` or `production`. Controls which Crossmint API host and which chains are used. |
+| `CROSSMINT_SERVER_API_KEY` | Server-side API key. Must start with `sk_staging_` or `sk_production_`. |
+| `CROSSMINT_WALLET_EMAIL` | Email used as the owner identity of the Crossmint smart wallets. |
+| `EVM_PRIVATE_KEY` | EVM private key (`0x...`). Registered as `adminSigner` on the Base EVM smart wallet. |
+| `STELLAR_SERVER_KEY` | Stellar ed25519 secret key (`S...`). Registered as `adminSigner` on the Stellar smart wallet. |
+
+#### Privy — required for Privy flow
+
+| Variable | Description |
+| --- | --- |
+| `PRIVY_APP_ID` | Privy App ID from the dashboard. |
+| `PRIVY_APP_SECRET` | Privy App Secret. |
+| `PRIVY_AUTHORIZATION_PRIVATE_KEY` | P-256 private key in `wallet-auth:<base64-PKCS8-DER>` format. |
+| `PRIVY_AUTHORIZATION_PUBLIC_KEY` | Matching P-256 public key. Also register in the Privy Dashboard. |
 
 #### RPC endpoints — optional (defaults shown)
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `BASE_RPC_URL` | `https://mainnet.base.org` | JSON-RPC endpoint for Base (or Base Sepolia when staging). |
+| `BASE_RPC_URL` | `https://mainnet.base.org` | JSON-RPC endpoint for Base. |
 | `SOROBAN_RPC_URL` | `https://rpc.stellar.org:443` | Soroban RPC for Stellar smart contract calls. |
 | `STELLAR_HORIZON_URL` | `https://horizon.stellar.org` | Stellar Horizon for account and transaction queries. |
 
-#### Near Intents — optional
+#### Other — optional
 
 | Variable | Description |
 | --- | --- |
+| `DEFINDEX_API_KEY` | Bearer token for the Defindex API (required for vault deposit). |
 | `NEAR_INTENTS_JWT` | JWT for the Near Intents / Defuse 1Click API. Only needed for the `near-intents` script. |
-
----
-
-## Why external-wallet?
-
-Crossmint smart wallets have two separate roles:
-
-- **Owner** — the identity the wallet is associated with (we use email).
-- **adminSigner** — the key that actually authorizes transactions.
-
-By default, authorizing a transaction triggers an OTP to the owner's email. For server-side automation that is unusable.
-
-Setting `adminSigner` to `type: "external-wallet"` with a local private key overrides that: **the private key becomes the sole transaction signer**, and no email interaction is ever required. The ownership identity (email) is kept only because Crossmint requires it for wallet creation.
-
-This pattern works for both chains:
-
-- **EVM (Base):** `EVM_PRIVATE_KEY` → Ethereum wallet → adminSigner on the Base smart wallet.
-- **Stellar (Soroban):** `STELLAR_SERVER_KEY` → ed25519 keypair → adminSigner on the Stellar smart wallet.
 
 ---
 
@@ -68,7 +60,8 @@ This pattern works for both chains:
 ### Sodax + Crossmint (Primary)
 
 Full server-side bridge from Base USDC to Stellar USDC. Uses a Crossmint EVM smart wallet
-as the signer on Base, and delivers USDC to a Crossmint Stellar smart wallet via the Sodax intent protocol.
+as the signer on Base, and delivers USDC to a Crossmint Stellar smart wallet via the Sodax
+intent protocol.
 
 ```bash
 # Auto-discover Stellar recipient from Crossmint (same email as CROSSMINT_WALLET_EMAIL)
@@ -78,15 +71,19 @@ pnpm sodax-crossmint
 pnpm sodax-crossmint -- <STELLAR_ADDRESS>
 ```
 
-**Flow:** ERC-20 approve → Sodax `createIntent` on Base → Sonic hub → Solver fills → USDC on Stellar → DeFindex vault deposit.
+| Command | Description | Status |
+| --- | --- | --- |
+| `pnpm sodax-crossmint` / `pnpm demo` | Base USDC → Stellar USDC via Sodax + Crossmint wallets | ✅ Operational |
+| `pnpm sodax-swap` | Swap-only on Base via Sodax (direct EVM wallet, no bridge) | ✅ Operational |
+| `pnpm sodax-status -- <TX_HASH>` | Poll and decode an existing Sodax intent status | ✅ Operational |
 
-**First run:** The script checks that the EVM wallet holds at least `0.001 ETH` (gas) and the configured USDC amount. If either is short, it prints the wallet address and exits with funding instructions. Fund the address and re-run.
+### Sodax + Privy
+
+Full server-side bridge using Privy TEE wallets for both EVM and Stellar.
 
 | Command | Description | Status |
 | --- | --- | --- |
-| `pnpm sodax-crossmint or pnpm demo` | Base USDC → Stellar USDC via Sodax intents + Crossmint wallets | ✅ Operational |
-| `pnpm sodax-swap` | Swap-only on Base via Sodax (direct EVM wallet, no bridge) | ✅ Operational |
-| `pnpm sodax-status -- <TX_HASH>` | Poll and decode an existing Sodax intent status | ✅ Operational |
+| `pnpm privy-mainnet` | Base USDC → Stellar USDC via Sodax + Privy wallets | ✅ Operational |
 
 ### 🚧 Allbridge Core
 
@@ -106,46 +103,55 @@ Cross-chain intent messaging via the Near/Defuse protocol.
 
 ---
 
-## ⚙️ Wallet Utilities
+## Wallet Utilities
 
 | Command | Description | Status |
 | --- | --- | --- |
 | `pnpm base-wallet` | Create / fund / inspect Crossmint EVM smart wallet on Base | ✅ Stable |
 | `pnpm stellar-wallet` | Create / inspect Crossmint Stellar smart wallet | ✅ Stable |
+| `pnpm privy-base` | Create / inspect Privy EVM wallet on Base Sepolia | ✅ Stable |
+| `pnpm privy-stellar` | Create / inspect Privy Stellar wallet on testnet | ✅ Stable |
+| `pnpm privy-defindex` | Privy Stellar wallet → Defindex vault deposit (testnet) | ✅ Stable |
+| `pnpm privy-keygen` | Generate a P-256 Authorization Key pair for Privy | ✅ Stable |
 
 ---
 
-## Architecture (sodax-crossmint)
+## Architecture
 
-```md
+```
 sodax-crossmint.ts
   ├── CrossmintRestClient          REST client for Crossmint Wallet API v2025-06-09
-  │     ├── getOrCreateEvmWallet()         GET email:{email}:evm; creates with EVM external-wallet adminSigner if missing
-  │     ├── getStellarWalletAddress()      GET email:{email}:stellar; creates with Stellar external-wallet adminSigner if missing
-  │     └── sendTransactionAndGetHash()    Signs + submits EVM txs via approval flow; polls for receipt
+  │     ├── getOrCreateEvmWallet()
+  │     ├── getStellarWalletAddress()
+  │     └── sendTransactionAndGetHash()
   ├── CrossmintEvmSodaxAdapter     Implements IEvmWalletProvider for Sodax SDK
   └── SodaxBridgeService           getQuote → executeSwap → pollStatus
-        └── sodax.swaps.*          Allowance check, approve, createIntent, getStatus
 ```
 
 Key files:
 
 | File | Purpose |
 | --- | --- |
-| `src/bridge/sodax-crossmint.ts` | Entry point — orchestrates the full bridge flow |
-| `src/shared/crossmint-rest.ts` | Thin REST client for Crossmint Wallet API (no SDK dependency) |
+| `src/bridge/sodax-crossmint.ts` | Entry point — orchestrates the full bridge flow (Crossmint) |
+| `src/privy/privy-mainnet-poc.ts` | Entry point — orchestrates the full bridge flow (Privy) |
+| `src/shared/crossmint-rest.ts` | Thin REST client for Crossmint Wallet API |
 | `src/shared/crossmint-adapters.ts` | Adapter: Crossmint REST → Sodax `IEvmWalletProvider` |
+| `src/shared/privy-client.ts` | PrivyClient singleton + `buildAuthContext()` |
+| `src/shared/privy-evm-sodax-adapter.ts` | Adapter: Privy → Sodax `IEvmWalletProvider` |
 | `src/shared/sodax-service.ts` | `SodaxBridgeService` — quote / swap / poll |
 | `src/shared/sodax.ts` | Sodax SDK init + shared utilities |
 | `src/shared/config.ts` | Centralized env config |
 
-### Wallet ownership model
+---
 
-Both wallets use the **external-wallet / adminSigner pattern** — no email OTP ever required:
+## Documentation
 
-| Wallet | Owner (identity) | adminSigner (signs txs) |
-| --- | --- | --- |
-| EVM smart wallet (Base) | `CROSSMINT_WALLET_EMAIL` | `EVM_PRIVATE_KEY` |
-| Stellar smart wallet (Soroban) | `CROSSMINT_WALLET_EMAIL` | `STELLAR_SERVER_KEY` (ed25519 public key) |
+Detailed guides are in the [`docs/`](./docs/) folder:
 
-See [Why external-wallet?](#why-external-wallet) for the full rationale.
+| Document | Description |
+| --- | --- |
+| [docs/index.md](./docs/index.md) | Master index — start here |
+| [docs/crossmint-bridge.md](./docs/crossmint-bridge.md) | Full Crossmint bridge guide (step-by-step, sequence diagram, gotchas) |
+| [docs/privy-bridge.md](./docs/privy-bridge.md) | Full Privy bridge guide (step-by-step, error log, design decisions) |
+| [docs/privy-pocs.md](./docs/privy-pocs.md) | Quickstart for all 4 Privy POCs |
+| [docs/custodial-vs-selfcustodial.md](./docs/custodial-vs-selfcustodial.md) | Custodial vs self-custodial architecture comparison |

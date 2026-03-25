@@ -2,31 +2,38 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A cross-chain bridge solution to move assets (primarily USDC) from **Base (L2)** to **Stellar/Soroban**, with integration targets for **DeFindex** vaults. The project uses **Crossmint** smart wallets (Account Abstraction) for both chains and the **Sodax** intent protocol for cross-chain execution.
+A cross-chain bridge solution to move assets (primarily USDC) from **Base (L2)** to **Stellar/Soroban**, with integration targets for **DeFindex** vaults. The project supports two wallet providers — **Crossmint** smart wallets (ERC-4337) and **Privy** TEE wallets — using the **Sodax** intent protocol for cross-chain execution.
 
-## Overview
+## Components
 
-This repository contains two components:
-
-- **🚧`dapp/`**: Next.js 15 frontend providing a user-facing bridge UI powered by Sodax (Still work in progress).
-- **`scripts/`**: TypeScript CLI tools for server-side cross-chain operations:
-  - **`bridge/`**: Cross-chain transfer scripts (Sodax, Allbridge, Near Intents).
-  - **`wallets/`**: Smart wallet management for Base and Stellar via Crossmint.
-  - **`shared/`**: Common config, REST client, adapters, and Sodax service.
+- **`scripts/`** — TypeScript CLI tools for server-side cross-chain operations.
+- **`dapp/`** — Next.js 15 frontend providing a user-facing bridge UI powered by Sodax *(work in progress)*.
 
 ## Architecture
 
-- **Bridging protocol**: [Sodax](https://sodax.com/) (intent-based, solver-filled)
-- **Wallet infrastructure**: [Crossmint Smart Wallets](https://www.crossmint.com/) — server-key pattern (no email OTP)
-- **Source chain**: Base (EVM)
-- **Destination chain**: Stellar (Soroban)
+```
+[Base EVM Wallet]
+      │  ERC-20 approve + createIntent (Sodax)
+      ▼
+[Sodax Spoke — Base]  →  [Sodax Hub — Sonic]  →  [Stellar Wallet]
+                                                        │
+                                                        │  Defindex vault deposit
+                                                        ▼
+                                                 [Defindex Vault — Soroban]
+```
+
+| Component | Detail |
+|---|---|
+| Bridge protocol | [Sodax](https://sodax.com/) — intent-based, solver-filled |
+| EVM wallet (option A) | Crossmint smart wallet (ERC-4337) via REST API |
+| EVM wallet (option B) | Privy EOA wallet in TEE via `@privy-io/node` |
+| Stellar wallet (option A) | Crossmint Stellar smart wallet (Soroban) |
+| Stellar wallet (option B) | Privy Stellar wallet (Tier 2 — raw sign + Horizon) |
+| Source chain | Base Mainnet (`eip155:8453`) |
+| Destination chain | Stellar Mainnet (`stellar:pubnet`) |
+| Defindex vault | Soroswap Earn USDC — `CA2FIPJ7...` |
 
 ## Getting Started
-
-### Prerequisites
-
-- Node.js v18+
-- pnpm
 
 ### Scripts (CLI Tools)
 
@@ -34,38 +41,30 @@ This repository contains two components:
 cd scripts
 pnpm install
 cp .env.example .env
-# Configure .env (see scripts/README.md for all variables)
+# Configure .env — see scripts/README.md for all variables
 ```
 
-## Running Scripts
-
-### Sodax + Crossmint bridge (primary)
+#### Primary bridge commands
 
 ```bash
-cd scripts
-
-# Bridge Base USDC → Stellar USDC (Stellar recipient auto-discovered via Crossmint email)
+# Crossmint path (ERC-4337 smart wallets)
 pnpm sodax-crossmint
 
-# Override recipient
-pnpm sodax-crossmint -- <STELLAR_ADDRESS>
+# Privy path (TEE EOA wallets)
+pnpm privy-mainnet
 
 # Check status of an in-flight intent
 pnpm sodax-status -- <SOURCE_TX_HASH>
 ```
 
-### Other bridge scripts
+#### Wallet utilities
 
 ```bash
-pnpm allbridge-bridge   # Allbridge Core SDK
-pnpm near-intents       # Near Intents / Defuse protocol
-```
-
-### Wallet utilities
-
-```bash
-pnpm base-wallet        # Manage Crossmint EVM smart wallet
-pnpm stellar-wallet     # Manage Crossmint Stellar smart wallet
+pnpm base-wallet        # Crossmint EVM smart wallet
+pnpm stellar-wallet     # Crossmint Stellar smart wallet
+pnpm privy-base         # Privy EVM wallet (Base Sepolia)
+pnpm privy-stellar      # Privy Stellar wallet (testnet)
+pnpm privy-keygen       # Generate Privy Authorization Key pair
 ```
 
 ### Dapp (Web Interface)
@@ -74,14 +73,19 @@ pnpm stellar-wallet     # Manage Crossmint Stellar smart wallet
 cd dapp
 pnpm install
 cp .env.example .env.local
-# Configure .env.local
 pnpm dev
 ```
 
 ## Documentation
 
-- [Scripts README](./scripts/README.md) — detailed setup, env vars, architecture
-- [Dapp README](./dapp/README.md) — dapp setup and usage
+| Document | Description |
+|---|---|
+| [scripts/README.md](./scripts/README.md) | Setup, env vars, all available commands |
+| [scripts/docs/index.md](./scripts/docs/index.md) | Documentation index — start here for deep dives |
+| [scripts/docs/crossmint-bridge.md](./scripts/docs/crossmint-bridge.md) | Crossmint bridge guide (step-by-step, sequence diagram, gotchas) |
+| [scripts/docs/privy-bridge.md](./scripts/docs/privy-bridge.md) | Privy bridge guide (step-by-step, error log, design decisions) |
+| [scripts/docs/privy-pocs.md](./scripts/docs/privy-pocs.md) | Privy POCs quickstart (4 scripts, testnet + mainnet) |
+| [scripts/docs/custodial-vs-selfcustodial.md](./scripts/docs/custodial-vs-selfcustodial.md) | Custodial vs self-custodial architecture comparison |
 
 ## License
 
