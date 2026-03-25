@@ -15,7 +15,7 @@ import { SwapParams, BridgeToken } from "../shared/bridge-types.js";
 
 const BASE_CAIP2 = "eip155:8453";
 const BRIDGE_AMOUNT_USDC = config.bridge.amount; // default "0.1"
-const MIN_ETH = ethers.parseEther("0.001");
+const MIN_ETH = ethers.parseEther("0.0005");
 const MIN_XLM = 3;
 
 const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
@@ -92,7 +92,7 @@ async function main() {
     console.log(`  ─────────────────────────────────────────────────────`);
     console.log(`  Send to: ${evmWallet.address}`);
     if (ethBalance < MIN_ETH) {
-      console.log(`    • ETH:  need ≥ 0.001  (have ${ethFormatted})`);
+      console.log(`    • ETH:  need ≥ 0.0005  (have ${ethFormatted})`);
     }
     if (usdcBalance < amountIn) {
       console.log(`    • USDC: need ≥ ${BRIDGE_AMOUNT_USDC}  (have ${usdcFormatted})`);
