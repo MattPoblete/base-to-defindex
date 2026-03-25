@@ -1,13 +1,5 @@
 import "dotenv/config";
 import { ethers } from "ethers";
-import {
-  xdr,
-  Networks,
-  TransactionBuilder,
-  Account,
-  Operation,
-  StrKey,
-} from "@stellar/stellar-base";
 import { config, SOROSWAP_EARN_USDC_VAULT } from "../shared/config.js";
 import { getOrCreateEvmWallet } from "../wallets/privy-base-wallet.js";
 import {
@@ -25,7 +17,9 @@ const BASE_CAIP2 = "eip155:8453";
 const BRIDGE_AMOUNT_USDC = config.bridge.amount;
 const MIN_ETH = ethers.parseEther("0.0005");
 const MIN_XLM = 3;
-const USDC_CONTRACT = config.sodax.stellarUsdc;
+
+const STELLAR_HORIZON_MAINNET = "https://horizon.stellar.org";
+const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -48,71 +42,31 @@ interface BridgeResult {
   amountReceived: bigint;
 }
 
-// ── Soroban USDC balance ─────────────────────────────────────────────────────
+// ── Horizon USDC balance ─────────────────────────────────────────────────────
 
 /**
- * Queries the USDC SAC balance for a Stellar address via Soroban RPC
- * by simulating a `balance(address)` call on the USDC contract.
+ * Fetches the USDC balance for a Stellar address via Horizon mainnet.
  * Returns the balance in stroops (7 decimals).
  */
-async function getSorobanUsdcBalance(stellarAddress: string): Promise<bigint> {
-  const pubkeyBytes = StrKey.decodeEd25519PublicKey(stellarAddress);
-  const addressScVal = xdr.ScVal.scvAddress(
-    xdr.ScAddress.scAddressTypeAccount(
-      xdr.AccountId.publicKeyTypeEd25519(pubkeyBytes)
-    )
+async function getHorizonUsdcBalance(stellarAddress: string): Promise<bigint> {
+  const response = await fetch(`${STELLAR_HORIZON_MAINNET}/accounts/${stellarAddress}`);
+  if (response.status === 404) return 0n;
+  if (!response.ok) throw new Error(`Horizon error: ${response.status}`);
+
+  const data = (await response.json()) as {
+    balances: Array<{ asset_code?: string; asset_issuer?: string; balance: string }>;
+  };
+
+  const usdcEntry = data.balances.find(
+    (b) => b.asset_code === "USDC" && b.asset_issuer === USDC_ISSUER
   );
 
-  const contractBytes = StrKey.decodeContract(USDC_CONTRACT);
-  const invokeArgs = new xdr.InvokeContractArgs({
-    contractAddress: xdr.ScAddress.scAddressTypeContract(contractBytes),
-    functionName: Buffer.from("balance"),
-    args: [addressScVal],
-  });
-
-  const op = Operation.invokeHostFunction({
-    func: xdr.HostFunction.hostFunctionTypeInvokeContract(invokeArgs),
-    auth: [],
-  });
-
-  const tx = new TransactionBuilder(new Account(stellarAddress, "0"), {
-    fee: "100",
-    networkPassphrase: Networks.PUBLIC,
-  })
-    .addOperation(op)
-    .setTimeout(30)
-    .build();
-
-  const res = await fetch(config.sorobanRpcUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "simulateTransaction",
-      params: { transaction: tx.toXDR() },
-    }),
-  });
-
-  const json = (await res.json()) as any;
-  if (json.error) throw new Error(`Soroban RPC error: ${JSON.stringify(json.error)}`);
-
-  const resultXdr = json.result?.results?.[0]?.xdr;
-  if (!resultXdr) return 0n;
-
-  try {
-    const scVal = xdr.ScVal.fromXDR(resultXdr, "base64");
-    const i128 = scVal.i128();
-    const hi = BigInt(i128.hi().toString());
-    const lo = BigInt(i128.lo().toString());
-    return (hi << 64n) | lo;
-  } catch {
-    return 0n;
-  }
+  if (!usdcEntry) return 0n;
+  return BigInt(Math.round(parseFloat(usdcEntry.balance) * 10_000_000));
 }
 
 /**
- * Polls via Soroban RPC until the USDC SAC balance reaches minimumStroops.
+ * Polls via Horizon until the USDC balance reaches minimumStroops.
  * Sodax marks SOLVED on the Hub (Sonic) before the Stellar tx confirms,
  * so we must poll before depositing into Defindex.
  */
@@ -123,10 +77,10 @@ async function waitForUsdcBalance(
   intervalMs = 10_000
 ): Promise<void> {
   const minFloat = Number(minimumStroops) / 10_000_000;
-  console.log(`  Waiting for ≥ ${minFloat} USDC via Soroban RPC...`);
+  console.log(`  Waiting for ≥ ${minFloat} USDC via Horizon...`);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const balanceStroops = await getSorobanUsdcBalance(stellarAddress);
+    const balanceStroops = await getHorizonUsdcBalance(stellarAddress);
     const balanceFloat = Number(balanceStroops) / 10_000_000;
     console.log(`  Attempt ${attempt}/${maxAttempts} — USDC balance: ${balanceFloat}`);
     if (balanceStroops >= minimumStroops) return;
@@ -157,13 +111,12 @@ async function setupEvmWallet(
     Math.round(Number(BRIDGE_AMOUNT_USDC) * 10 ** config.sodax.usdcDecimals)
   );
 
-  logEvmBalances(evmWallet.address, ethBalance, usdcBalance, amountIn);
+  logEvmBalances(ethBalance, usdcBalance, amountIn);
 
   return { id: evmWallet.id, address: evmWallet.address, ethBalance, usdcBalance, amountIn };
 }
 
 function logEvmBalances(
-  address: string,
   ethBalance: bigint,
   usdcBalance: bigint,
   amountIn: bigint
