@@ -72,6 +72,9 @@ pnpm privy-stellar
 
 # POC 3: Defindex XLM vault deposit (Stellar testnet)
 pnpm privy-defindex
+
+# POC 4: Full mainnet flow (Base → Stellar → Defindex)
+pnpm privy-mainnet
 ```
 
 ---
@@ -184,20 +187,58 @@ DEFINDEX_API_KEY=<Bearer token from Defindex team>
 
 ---
 
+## POC 4 — Full Mainnet Flow (Base → Stellar → Defindex)
+
+**File:** `src/privy/privy-mainnet-poc.ts`
+
+### Flow
+```
+1. getOrCreateEvmWallet()             — Base wallet (Tier 3)
+   checkEvmFunding()                  — ETH ≥ 0.001 + USDC ≥ bridge amount
+   → if insufficient: print address + instructions → EXIT
+
+2. getOrCreateStellarWallet()         — Stellar wallet (Tier 2)
+   ensureXlmFunding(address, 3)       — sponsor from STELLAR_SERVER_KEY if < 3 XLM
+   ensureUsdcTrustline(walletId, addr)— changeTrust if missing → rawSign → Horizon mainnet
+
+3. PrivyEvmSodaxAdapter               — implements IEvmWalletProvider via Privy sendTransaction
+   SodaxBridgeService.getQuote()
+   SodaxBridgeService.executeSwap()   → srcTxHash (Basescan)
+   SodaxBridgeService.pollStatus()    → destTxHash + amountReceived (Stellar)
+
+4. depositToDefindexVault(..., "mainnet")
+   POST api.defindex.io/vault/{SOROSWAP_EARN_USDC_VAULT}/deposit?network=mainnet
+   rawSign → DecoratedSignature → POST /send?network=mainnet → txHash
+
+5. Print full summary with explorer links
+```
+
+### Additional env vars required
+```
+STELLAR_SERVER_KEY=<Stellar secret key with ≥ 5 XLM on mainnet (for sponsoring)>
+DEFINDEX_API_KEY=<Bearer token from Defindex>
+```
+
+---
+
 ## File Structure
 
 ```
 scripts/src/
 ├── shared/
-│   ├── config.ts              # Extended with privy: { ... } + XLM_DEFINDEX_VAULT_TESTNET
-│   └── privy-client.ts        # PrivyClient singleton + buildAuthContext()
+│   ├── config.ts                    # Extended with privy: { ... } + vault constants
+│   ├── privy-client.ts              # PrivyClient singleton + buildAuthContext()
+│   └── privy-evm-sodax-adapter.ts  # PrivyEvmSodaxAdapter (IEvmWalletProvider)
 ├── wallets/
-│   ├── privy-base-wallet.ts   # EVM: create, balance, sendTransaction
-│   ├── privy-stellar-wallet.ts# Stellar: create, balance, rawSign + broadcast
-│   └── privy-defindex-wallet.ts # Defindex: buildDepositXdr + rawSign + submit
+│   ├── privy-base-wallet.ts         # EVM: create, balance, sendTransaction
+│   ├── privy-stellar-wallet.ts      # Stellar: create, balance, rawSign + broadcast
+│   │                                #   + ensureXlmFunding() + ensureUsdcTrustline()
+│   └── privy-defindex-wallet.ts     # Defindex: buildDepositXdr + rawSign + submit
+│                                    #   network param: "testnet" | "mainnet"
 └── privy/
-    ├── generate-auth-key.ts   # One-time keypair generation utility
-    ├── privy-base-poc.ts      # POC 1 entry point
-    ├── privy-stellar-poc.ts   # POC 2 entry point
-    └── privy-defindex-poc.ts  # POC 3 entry point
+    ├── generate-auth-key.ts         # One-time keypair generation utility
+    ├── privy-base-poc.ts            # POC 1 entry point
+    ├── privy-stellar-poc.ts         # POC 2 entry point
+    ├── privy-defindex-poc.ts        # POC 3 entry point
+    └── privy-mainnet-poc.ts         # POC 4 entry point (full mainnet flow)
 ```

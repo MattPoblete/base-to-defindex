@@ -7,24 +7,25 @@ import {
 import { privy, buildAuthContext } from "../shared/privy-client.js";
 
 const DEFINDEX_API = "https://api.defindex.io";
-const DEFINDEX_NETWORK = "testnet";
 const DEFINDEX_SLIPPAGE_BPS = 50; // 0.5%
 
 /**
  * Calls the Defindex API to build an unsigned deposit XDR for the given vault.
  * @param vaultAddress  Soroban contract address of the vault
  * @param callerAddress Stellar address of the depositor (Privy wallet)
- * @param amountStroops Amount in stroops (7 decimals: 1 XLM = 10_000_000)
+ * @param amountStroops Amount in stroops (7 decimals: 1 XLM/USDC = 10_000_000)
  * @param apiKey        Defindex API Bearer token
+ * @param network       "testnet" | "mainnet"
  * @returns Unsigned transaction XDR (base64)
  */
 async function buildDepositXdr(
   vaultAddress: string,
   callerAddress: string,
   amountStroops: bigint,
-  apiKey: string
+  apiKey: string,
+  network: "testnet" | "mainnet"
 ): Promise<string> {
-  const url = `${DEFINDEX_API}/vault/${vaultAddress}/deposit?network=${DEFINDEX_NETWORK}`;
+  const url = `${DEFINDEX_API}/vault/${vaultAddress}/deposit?network=${network}`;
   console.log(`  [Defindex] Building deposit XDR via API...`);
   console.log('params')
   console.log({
@@ -69,9 +70,10 @@ async function buildDepositXdr(
  */
 async function submitSignedXdr(
   signedXdr: string,
-  apiKey: string
+  apiKey: string,
+  network: "testnet" | "mainnet"
 ): Promise<string> {
-  const url = `${DEFINDEX_API}/send?network=${DEFINDEX_NETWORK}`;
+  const url = `${DEFINDEX_API}/send?network=${network}`;
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -113,7 +115,8 @@ export async function depositToDefindexVault(
   fromAddress: string,
   vaultAddress: string,
   amountStroops: bigint,
-  apiKey: string
+  apiKey: string,
+  network: "testnet" | "mainnet" = "testnet"
 ): Promise<string> {
   // [1] Build unsigned XDR via Defindex API
   console.log(`  [Defindex] Requesting deposit XDR from API...`);
@@ -121,14 +124,17 @@ export async function depositToDefindexVault(
     vaultAddress,
     fromAddress,
     amountStroops,
-    apiKey
+    apiKey,
+    network
   );
   console.log(`  [Defindex] Unsigned XDR received (${unsignedXdr.length} chars)`);
 
   // [2] Parse the XDR into a Transaction object
+  const networkPassphrase =
+    network === "mainnet" ? Networks.PUBLIC : Networks.TESTNET;
   const transaction = TransactionBuilder.fromXDR(
     unsignedXdr,
-    Networks.TESTNET
+    networkPassphrase
   ) as ReturnType<typeof TransactionBuilder.fromXDR>;
 
   // [3] Hash the transaction for signing
@@ -160,5 +166,5 @@ export async function depositToDefindexVault(
   const signedXdr = (transaction as any).toEnvelope().toXDR("base64");
   console.log(`  [Defindex] Submitting signed XDR...`);
 
-  return submitSignedXdr(signedXdr, apiKey);
+  return submitSignedXdr(signedXdr, apiKey, network);
 }

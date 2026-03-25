@@ -15,7 +15,8 @@
     "privy-keygen": "tsx src/privy/generate-auth-key.ts",
     "privy-base": "tsx src/privy/privy-base-poc.ts",
     "privy-stellar": "tsx src/privy/privy-stellar-poc.ts",
-    "privy-defindex": "tsx src/privy/privy-defindex-poc.ts"
+    "privy-defindex": "tsx src/privy/privy-defindex-poc.ts",
+    "privy-mainnet": "tsx src/privy/privy-mainnet-poc.ts"
   },
   "dependencies": {
     "@allbridge/bridge-core-sdk": "^3.29.1",
