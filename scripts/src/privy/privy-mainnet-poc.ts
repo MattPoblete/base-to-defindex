@@ -22,11 +22,33 @@ import { SodaxBridgeService } from "../shared/sodax-service.js";
 import { SwapParams, BridgeToken } from "../shared/bridge-types.js";
 
 const BASE_CAIP2 = "eip155:8453";
-const BRIDGE_AMOUNT_USDC = config.bridge.amount; // default "0.1"
+const BRIDGE_AMOUNT_USDC = config.bridge.amount;
 const MIN_ETH = ethers.parseEther("0.0005");
 const MIN_XLM = 3;
+const USDC_CONTRACT = config.sodax.stellarUsdc;
 
-const USDC_CONTRACT = config.sodax.stellarUsdc; // CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75
+// ── Types ────────────────────────────────────────────────────────────────────
+
+interface EvmWalletInfo {
+  id: string;
+  address: string;
+  ethBalance: bigint;
+  usdcBalance: bigint;
+  amountIn: bigint;
+}
+
+interface StellarWalletInfo {
+  id: string;
+  address: string;
+}
+
+interface BridgeResult {
+  srcTxHash: string;
+  destTxHash: string;
+  amountReceived: bigint;
+}
+
+// ── Soroban USDC balance ─────────────────────────────────────────────────────
 
 /**
  * Queries the USDC SAC balance for a Stellar address via Soroban RPC
@@ -111,20 +133,14 @@ async function waitForUsdcBalance(
     if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, intervalMs));
   }
 
-  throw new Error(
-    `USDC did not arrive after ${(maxAttempts * intervalMs) / 1000}s`
-  );
+  throw new Error(`USDC did not arrive after ${(maxAttempts * intervalMs) / 1000}s`);
 }
 
-async function main() {
-  console.log("Privy Server Wallet — Full Mainnet Flow (Base → Stellar → Defindex)");
-  console.log("──────────────────────────────────────────────────────────────────────");
+// ── Step 1: EVM wallet ───────────────────────────────────────────────────────
 
-  const provider = new ethers.JsonRpcProvider(config.baseRpcUrl);
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // [1/5] Base (EVM) wallet — create and check funding
-  // ─────────────────────────────────────────────────────────────────────────
+async function setupEvmWallet(
+  provider: ethers.JsonRpcProvider
+): Promise<EvmWalletInfo> {
   console.log("\n[1/5] Creating / retrieving Base (EVM) wallet...");
   const evmWallet = await getOrCreateEvmWallet();
   console.log(`  Address:  ${evmWallet.address}`);
@@ -137,41 +153,55 @@ async function main() {
     usdcContract.balanceOf(evmWallet.address),
   ]);
 
-  const ethFormatted = ethers.formatEther(ethBalance);
-  const usdcFormatted = ethers.formatUnits(usdcBalance, config.sodax.usdcDecimals);
   const amountIn = BigInt(
     Math.round(Number(BRIDGE_AMOUNT_USDC) * 10 ** config.sodax.usdcDecimals)
   );
 
-  const ethWei = ethBalance;
-  const usdcRaw = usdcBalance;
+  logEvmBalances(evmWallet.address, ethBalance, usdcBalance, amountIn);
+
+  return { id: evmWallet.id, address: evmWallet.address, ethBalance, usdcBalance, amountIn };
+}
+
+function logEvmBalances(
+  address: string,
+  ethBalance: bigint,
+  usdcBalance: bigint,
+  amountIn: bigint
+): void {
+  const ethFormatted = ethers.formatEther(ethBalance);
+  const usdcFormatted = ethers.formatUnits(usdcBalance, config.sodax.usdcDecimals);
+
   console.log(`\n  ┌─ Base Wallet Balances ──────────────────────────────`);
-  console.log(`  │  ETH:  ${ethFormatted} ETH  (raw: ${ethWei} wei)`);
-  console.log(`  │  USDC: ${usdcFormatted} USDC  (raw: ${usdcRaw} units)`);
+  console.log(`  │  ETH:  ${ethFormatted} ETH  (raw: ${ethBalance} wei)`);
+  console.log(`  │  USDC: ${usdcFormatted} USDC  (raw: ${usdcBalance} units)`);
   console.log(`  │`);
   console.log(`  │  Bridge requires:  ${BRIDGE_AMOUNT_USDC} USDC  (raw: ${amountIn})`);
   console.log(`  │  ETH min:          0.0005 ETH  (raw: ${MIN_ETH} wei)`);
   console.log(`  │  ETH sufficient:   ${ethBalance >= MIN_ETH ? "✅" : "❌"} (${ethFormatted} ≥ 0.0005)`);
   console.log(`  │  USDC sufficient:  ${usdcBalance >= amountIn ? "✅" : "❌"} (${usdcFormatted} ≥ ${BRIDGE_AMOUNT_USDC})`);
   console.log(`  └─────────────────────────────────────────────────────`);
+}
 
-  if (ethBalance < MIN_ETH || usdcBalance < amountIn) {
-    console.log(`\n  ⚠️  Wallet needs funding before the bridge can run.`);
-    console.log(`  ─────────────────────────────────────────────────────`);
-    console.log(`  Send to: ${evmWallet.address}`);
-    if (ethBalance < MIN_ETH) {
-      console.log(`    • ETH:  need ≥ 0.0005  (have ${ethFormatted})`);
-    }
-    if (usdcBalance < amountIn) {
-      console.log(`    • USDC: need ≥ ${BRIDGE_AMOUNT_USDC}  (have ${usdcFormatted})`);
-    }
-    console.log(`  ─────────────────────────────────────────────────────`);
-    process.exit(0);
-  }
+function assertEvmFunding(wallet: EvmWalletInfo): void {
+  if (wallet.ethBalance >= MIN_ETH && wallet.usdcBalance >= wallet.amountIn) return;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // [2/5] Stellar wallet — create, fund XLM, ensure USDC trustline
-  // ─────────────────────────────────────────────────────────────────────────
+  const ethFormatted = ethers.formatEther(wallet.ethBalance);
+  const usdcFormatted = ethers.formatUnits(wallet.usdcBalance, config.sodax.usdcDecimals);
+
+  console.log(`\n  ⚠️  Wallet needs funding before the bridge can run.`);
+  console.log(`  ─────────────────────────────────────────────────────`);
+  console.log(`  Send to: ${wallet.address}`);
+  if (wallet.ethBalance < MIN_ETH)
+    console.log(`    • ETH:  need ≥ 0.0005  (have ${ethFormatted})`);
+  if (wallet.usdcBalance < wallet.amountIn)
+    console.log(`    • USDC: need ≥ ${BRIDGE_AMOUNT_USDC}  (have ${usdcFormatted})`);
+  console.log(`  ─────────────────────────────────────────────────────`);
+  process.exit(0);
+}
+
+// ── Step 2: Stellar wallet ───────────────────────────────────────────────────
+
+async function setupStellarWallet(): Promise<StellarWalletInfo> {
   console.log("\n[2/5] Creating / retrieving Stellar wallet...");
   const stellarWallet = await getOrCreateStellarWallet();
   console.log(`  Address:  ${stellarWallet.address}`);
@@ -183,21 +213,12 @@ async function main() {
   console.log(`\n  Checking USDC trustline...`);
   await ensureUsdcTrustline(stellarWallet.id, stellarWallet.address);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // [3/5] Bridge USDC Base → Stellar via Sodax
-  // ─────────────────────────────────────────────────────────────────────────
-  console.log(`\n[3/5] Bridging ${BRIDGE_AMOUNT_USDC} USDC from Base to Stellar...`);
+  return { id: stellarWallet.id, address: stellarWallet.address };
+}
 
-  const privyAdapter = new PrivyEvmSodaxAdapter(
-    evmWallet.id,
-    evmWallet.address,
-    BASE_CAIP2,
-    provider
-  );
+// ── Step 3: Bridge ───────────────────────────────────────────────────────────
 
-  const sodax = await initializeSodax();
-  const bridgeService = new SodaxBridgeService(sodax);
-
+function buildSwapParams(evmWallet: EvmWalletInfo, stellarAddress: string): SwapParams {
   const srcToken: BridgeToken = {
     symbol: "USDC",
     address: config.sodax.baseUsdc,
@@ -212,17 +233,36 @@ async function main() {
     chainId: config.sodax.stellarChainId,
   };
 
-  const swapParams: SwapParams = {
+  return {
     srcToken,
     dstToken,
-    amountIn,
-    dstAddress: stellarWallet.address,
+    amountIn: evmWallet.amountIn,
+    dstAddress: stellarAddress,
     slippageBps: 100, // 1%
   };
+}
+
+async function executeBridge(
+  evmWallet: EvmWalletInfo,
+  stellarAddress: string,
+  provider: ethers.JsonRpcProvider
+): Promise<BridgeResult> {
+  console.log(`\n[3/5] Bridging ${BRIDGE_AMOUNT_USDC} USDC from Base to Stellar...`);
+
+  const privyAdapter = new PrivyEvmSodaxAdapter(
+    evmWallet.id,
+    evmWallet.address,
+    BASE_CAIP2,
+    provider
+  );
+
+  const sodax = await initializeSodax();
+  const bridgeService = new SodaxBridgeService(sodax);
+  const swapParams = buildSwapParams(evmWallet, stellarAddress);
 
   console.log(`  Fetching quote...`);
   const quote = await bridgeService.getQuote(swapParams);
-  const amountOutFormatted = ethers.formatUnits(quote.amountOut, dstToken.decimals);
+  const amountOutFormatted = ethers.formatUnits(quote.amountOut, swapParams.dstToken.decimals);
   console.log(`  Quoted: ${amountOutFormatted} USDC on Stellar`);
 
   console.log(`  Executing swap...`);
@@ -231,24 +271,27 @@ async function main() {
   console.log(`     Basescan: https://basescan.org/tx/${swapResult.srcTxHash}`);
 
   console.log(`  Waiting for Stellar fulfillment...`);
-  const { destTxHash, amountReceived } = await bridgeService.pollStatus(
-    swapResult.statusHash
-  );
+  const { destTxHash, amountReceived } = await bridgeService.pollStatus(swapResult.statusHash);
   console.log(`  ✅ Bridge complete!`);
   console.log(`     Stellar Tx: ${destTxHash}`);
   console.log(`     Explorer: https://stellar.expert/explorer/public/tx/${destTxHash}`);
 
-  // Wait for USDC to land in Stellar before depositing.
-  // Sodax resolves SOLVED on the Hub (Sonic) before the Stellar tx confirms.
-  await waitForUsdcBalance(stellarWallet.address, amountReceived);
+  await waitForUsdcBalance(stellarAddress, amountReceived);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // [4/5] Deposit USDC into Defindex vault (mainnet)
-  // ─────────────────────────────────────────────────────────────────────────
-  console.log(`\n[4/5] Depositing ${ethers.formatUnits(amountReceived, dstToken.decimals)} USDC into Defindex vault...`);
+  return { srcTxHash: swapResult.srcTxHash, destTxHash, amountReceived };
+}
+
+// ── Step 4: Defindex deposit ─────────────────────────────────────────────────
+
+async function depositToVault(
+  stellarWallet: StellarWalletInfo,
+  amountReceived: bigint
+): Promise<string> {
+  const amountFormatted = ethers.formatUnits(amountReceived, config.sodax.stellarDecimals);
+  console.log(`\n[4/5] Depositing ${amountFormatted} USDC into Defindex vault...`);
   console.log(`  Vault: ${SOROSWAP_EARN_USDC_VAULT}`);
 
-  const depositTxHash = await depositToDefindexVault(
+  return depositToDefindexVault(
     stellarWallet.id,
     stellarWallet.address,
     SOROSWAP_EARN_USDC_VAULT,
@@ -256,20 +299,46 @@ async function main() {
     config.defindexApiKey,
     "mainnet"
   );
+}
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // [5/5] Summary
-  // ─────────────────────────────────────────────────────────────────────────
+// ── Step 5: Summary ──────────────────────────────────────────────────────────
+
+function logSummary(
+  evmAddress: string,
+  stellarAddress: string,
+  bridgeResult: BridgeResult,
+  depositTxHash: string
+): void {
   console.log(`\n[5/5] Done!`);
   console.log(`  ✅ Defindex deposit: ${depositTxHash}`);
   console.log(`     Explorer: https://stellar.expert/explorer/public/tx/${depositTxHash}`);
 
   console.log("\n──────────────────────────────────────────────────────────────────────");
   console.log("🎉 FULL MAINNET FLOW COMPLETE");
-  console.log(`   Base wallet:    ${evmWallet.address}`);
-  console.log(`   Stellar wallet: ${stellarWallet.address}`);
-  console.log(`   Bridge tx:      ${swapResult.srcTxHash}`);
+  console.log(`   Base wallet:    ${evmAddress}`);
+  console.log(`   Stellar wallet: ${stellarAddress}`);
+  console.log(`   Bridge tx:      ${bridgeResult.srcTxHash}`);
   console.log(`   Defindex tx:    ${depositTxHash}`);
+}
+
+// ── Entry point ──────────────────────────────────────────────────────────────
+
+async function main() {
+  console.log("Privy Server Wallet — Full Mainnet Flow (Base → Stellar → Defindex)");
+  console.log("──────────────────────────────────────────────────────────────────────");
+
+  const provider = new ethers.JsonRpcProvider(config.baseRpcUrl);
+
+  const evmWallet = await setupEvmWallet(provider);
+  assertEvmFunding(evmWallet);
+
+  const stellarWallet = await setupStellarWallet();
+
+  const bridgeResult = await executeBridge(evmWallet, stellarWallet.address, provider);
+
+  const depositTxHash = await depositToVault(stellarWallet, bridgeResult.amountReceived);
+
+  logSummary(evmWallet.address, stellarWallet.address, bridgeResult, depositTxHash);
 }
 
 main().catch((err) => {
