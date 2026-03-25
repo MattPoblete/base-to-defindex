@@ -18,6 +18,45 @@ const BRIDGE_AMOUNT_USDC = config.bridge.amount; // default "0.1"
 const MIN_ETH = ethers.parseEther("0.001");
 const MIN_XLM = 3;
 
+const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+
+/**
+ * Polls Horizon mainnet until the Stellar wallet's USDC balance reaches
+ * the expected amount. Sodax marks SOLVED on the Hub before the Stellar
+ * transaction is confirmed, so we must wait before depositing.
+ */
+async function waitForUsdcBalance(
+  stellarAddress: string,
+  minimumStroops: bigint,
+  maxAttempts = 36,
+  intervalMs = 10_000
+): Promise<void> {
+  const minFloat = Number(minimumStroops) / 10_000_000;
+  console.log(`  Waiting for ≥ ${minFloat} USDC to arrive in Stellar wallet...`);
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const res = await fetch(
+      `https://horizon.stellar.org/accounts/${stellarAddress}`
+    );
+    if (res.ok) {
+      const data = (await res.json()) as any;
+      const usdcEntry = data.balances?.find(
+        (b: any) => b.asset_code === "USDC" && b.asset_issuer === USDC_ISSUER
+      );
+      const balance = parseFloat(usdcEntry?.balance ?? "0");
+      console.log(`  Attempt ${attempt}/${maxAttempts} — USDC balance: ${balance}`);
+      if (balance >= minFloat) return;
+    } else {
+      console.log(`  Attempt ${attempt}/${maxAttempts} — Horizon ${res.status}`);
+    }
+    if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, intervalMs));
+  }
+
+  throw new Error(
+    `USDC did not arrive in Stellar wallet after ${(maxAttempts * intervalMs) / 1000}s`
+  );
+}
+
 async function main() {
   console.log("Privy Server Wallet — Full Mainnet Flow (Base → Stellar → Defindex)");
   console.log("──────────────────────────────────────────────────────────────────────");
@@ -130,6 +169,10 @@ async function main() {
   console.log(`  ✅ Bridge complete!`);
   console.log(`     Stellar Tx: ${destTxHash}`);
   console.log(`     Explorer: https://stellar.expert/explorer/public/tx/${destTxHash}`);
+
+  // Wait for USDC to land in Stellar before depositing.
+  // Sodax resolves SOLVED on the Hub (Sonic) before the Stellar tx confirms.
+  await waitForUsdcBalance(stellarWallet.address, amountReceived);
 
   // ─────────────────────────────────────────────────────────────────────────
   // [4/5] Deposit USDC into Defindex vault (mainnet)
