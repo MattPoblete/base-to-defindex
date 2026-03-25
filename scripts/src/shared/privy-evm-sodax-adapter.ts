@@ -29,6 +29,12 @@ export class PrivyEvmSodaxAdapter implements IEvmWalletProvider {
   async sendTransaction(evmRawTx: EvmRawTransaction): Promise<Hash> {
     console.log(`[PrivyAdapter] Sending transaction to ${evmRawTx.to}...`);
 
+    // Privy cannot serialize BigInt — convert value to 0x-prefixed hex string
+    const valueHex =
+      evmRawTx.value != null
+        ? "0x" + BigInt(evmRawTx.value as any).toString(16)
+        : undefined;
+
     const response = await privy
       .wallets()
       .ethereum()
@@ -38,7 +44,7 @@ export class PrivyEvmSodaxAdapter implements IEvmWalletProvider {
           transaction: {
             to: evmRawTx.to,
             data: evmRawTx.data,
-            value: evmRawTx.value,
+            value: valueHex,
           },
         },
         authorization_context: buildAuthContext(),
