@@ -1,5 +1,13 @@
 import "dotenv/config";
 import { ethers } from "ethers";
+import {
+  xdr,
+  Networks,
+  TransactionBuilder,
+  Account,
+  Operation,
+  StrKey,
+} from "@stellar/stellar-base";
 import { config, SOROSWAP_EARN_USDC_VAULT } from "../shared/config.js";
 import { getOrCreateEvmWallet } from "../wallets/privy-base-wallet.js";
 import {
@@ -18,12 +26,73 @@ const BRIDGE_AMOUNT_USDC = config.bridge.amount; // default "0.1"
 const MIN_ETH = ethers.parseEther("0.0005");
 const MIN_XLM = 3;
 
-const USDC_ISSUER = "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN";
+const USDC_CONTRACT = config.sodax.stellarUsdc; // CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75
 
 /**
- * Polls Horizon mainnet until the Stellar wallet's USDC balance reaches
- * the expected amount. Sodax marks SOLVED on the Hub before the Stellar
- * transaction is confirmed, so we must wait before depositing.
+ * Queries the USDC SAC balance for a Stellar address via Soroban RPC
+ * by simulating a `balance(address)` call on the USDC contract.
+ * Returns the balance in stroops (7 decimals).
+ */
+async function getSorobanUsdcBalance(stellarAddress: string): Promise<bigint> {
+  const pubkeyBytes = StrKey.decodeEd25519PublicKey(stellarAddress);
+  const addressScVal = xdr.ScVal.scvAddress(
+    xdr.ScAddress.scAddressTypeAccount(
+      xdr.AccountId.publicKeyTypeEd25519(pubkeyBytes)
+    )
+  );
+
+  const contractBytes = StrKey.decodeContract(USDC_CONTRACT);
+  const invokeArgs = new xdr.InvokeContractArgs({
+    contractAddress: xdr.ScAddress.scAddressTypeContract(contractBytes),
+    functionName: Buffer.from("balance"),
+    args: [addressScVal],
+  });
+
+  const op = Operation.invokeHostFunction({
+    func: xdr.HostFunction.hostFunctionTypeInvokeContract(invokeArgs),
+    auth: [],
+  });
+
+  const tx = new TransactionBuilder(new Account(stellarAddress, "0"), {
+    fee: "100",
+    networkPassphrase: Networks.PUBLIC,
+  })
+    .addOperation(op)
+    .setTimeout(30)
+    .build();
+
+  const res = await fetch(config.sorobanRpcUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "simulateTransaction",
+      params: { transaction: tx.toXDR() },
+    }),
+  });
+
+  const json = (await res.json()) as any;
+  if (json.error) throw new Error(`Soroban RPC error: ${JSON.stringify(json.error)}`);
+
+  const resultXdr = json.result?.results?.[0]?.xdr;
+  if (!resultXdr) return 0n;
+
+  try {
+    const scVal = xdr.ScVal.fromXDR(resultXdr, "base64");
+    const i128 = scVal.i128();
+    const hi = BigInt(i128.hi().toString());
+    const lo = BigInt(i128.lo().toString());
+    return (hi << 64n) | lo;
+  } catch {
+    return 0n;
+  }
+}
+
+/**
+ * Polls via Soroban RPC until the USDC SAC balance reaches minimumStroops.
+ * Sodax marks SOLVED on the Hub (Sonic) before the Stellar tx confirms,
+ * so we must poll before depositing into Defindex.
  */
 async function waitForUsdcBalance(
   stellarAddress: string,
@@ -32,28 +101,18 @@ async function waitForUsdcBalance(
   intervalMs = 10_000
 ): Promise<void> {
   const minFloat = Number(minimumStroops) / 10_000_000;
-  console.log(`  Waiting for ≥ ${minFloat} USDC to arrive in Stellar wallet...`);
+  console.log(`  Waiting for ≥ ${minFloat} USDC via Soroban RPC...`);
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const res = await fetch(
-      `https://horizon.stellar.org/accounts/${stellarAddress}`
-    );
-    if (res.ok) {
-      const data = (await res.json()) as any;
-      const usdcEntry = data.balances?.find(
-        (b: any) => b.asset_code === "USDC" && b.asset_issuer === USDC_ISSUER
-      );
-      const balance = parseFloat(usdcEntry?.balance ?? "0");
-      console.log(`  Attempt ${attempt}/${maxAttempts} — USDC balance: ${balance}`);
-      if (balance >= minFloat) return;
-    } else {
-      console.log(`  Attempt ${attempt}/${maxAttempts} — Horizon ${res.status}`);
-    }
+    const balanceStroops = await getSorobanUsdcBalance(stellarAddress);
+    const balanceFloat = Number(balanceStroops) / 10_000_000;
+    console.log(`  Attempt ${attempt}/${maxAttempts} — USDC balance: ${balanceFloat}`);
+    if (balanceStroops >= minimumStroops) return;
     if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, intervalMs));
   }
 
   throw new Error(
-    `USDC did not arrive in Stellar wallet after ${(maxAttempts * intervalMs) / 1000}s`
+    `USDC did not arrive after ${(maxAttempts * intervalMs) / 1000}s`
   );
 }
 
