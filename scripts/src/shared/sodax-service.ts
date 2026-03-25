@@ -31,7 +31,7 @@ import { ethers } from "ethers";
 export class SodaxBridgeService implements IBridgeService {
   constructor(private sodax: Sodax) {}
 
-  async getQuote(params: SwapParams): Promise<BridgeQuote> {
+  async getQuote(params: SwapParams, maxAttempts = 5): Promise<BridgeQuote> {
     const request: SolverIntentQuoteRequest = {
       token_src: params.srcToken.address,
       token_src_blockchain_id: params.srcToken.chainId as SpokeChainId,
@@ -41,15 +41,26 @@ export class SodaxBridgeService implements IBridgeService {
       quote_type: "exact_input",
     };
 
-    const result = await this.sodax.swaps.getQuote(request);
-    if (!result.ok) throw new Error(`Quote failed: ${formatError(result.error)}`);
-
-    return {
-      amountIn: params.amountIn,
-      amountOut: result.value.quoted_amount,
-      fee: 0n, // Sodax fee is usually baked into the quote or handled by relayer
-      rawQuote: result.value,
-    };
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const result = await this.sodax.swaps.getQuote(request);
+      if (result.ok) {
+        return {
+          amountIn: params.amountIn,
+          amountOut: result.value.quoted_amount,
+          fee: 0n,
+          rawQuote: result.value,
+        };
+      }
+      const errMsg = formatError(result.error);
+      if (attempt < maxAttempts) {
+        console.log(`  Quote attempt ${attempt}/${maxAttempts} failed (${errMsg}) — retrying in 5s...`);
+        await sleep(5000);
+      } else {
+        throw new Error(`Quote failed after ${maxAttempts} attempts: ${errMsg}`);
+      }
+    }
+    // unreachable
+    throw new Error("Quote failed");
   }
 
   async executeSwap(
