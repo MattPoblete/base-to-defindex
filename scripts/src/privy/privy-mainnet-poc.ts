@@ -143,8 +143,17 @@ async function main() {
     Math.round(Number(BRIDGE_AMOUNT_USDC) * 10 ** config.sodax.usdcDecimals)
   );
 
-  console.log(`  ETH:  ${ethFormatted}`);
-  console.log(`  USDC: ${usdcFormatted}`);
+  const ethWei = ethBalance;
+  const usdcRaw = usdcBalance;
+  console.log(`\n  ┌─ Base Wallet Balances ──────────────────────────────`);
+  console.log(`  │  ETH:  ${ethFormatted} ETH  (raw: ${ethWei} wei)`);
+  console.log(`  │  USDC: ${usdcFormatted} USDC  (raw: ${usdcRaw} units)`);
+  console.log(`  │`);
+  console.log(`  │  Bridge requires:  ${BRIDGE_AMOUNT_USDC} USDC  (raw: ${amountIn})`);
+  console.log(`  │  ETH min:          0.0005 ETH  (raw: ${MIN_ETH} wei)`);
+  console.log(`  │  ETH sufficient:   ${ethBalance >= MIN_ETH ? "✅" : "❌"} (${ethFormatted} ≥ 0.0005)`);
+  console.log(`  │  USDC sufficient:  ${usdcBalance >= amountIn ? "✅" : "❌"} (${usdcFormatted} ≥ ${BRIDGE_AMOUNT_USDC})`);
+  console.log(`  └─────────────────────────────────────────────────────`);
 
   if (ethBalance < MIN_ETH || usdcBalance < amountIn) {
     console.log(`\n  ⚠️  Wallet needs funding before the bridge can run.`);
