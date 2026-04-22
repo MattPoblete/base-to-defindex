@@ -67,6 +67,14 @@ export const config = {
   defindexVaultAddress: SOROSWAP_EARN_USDC_VAULT,
   defindexApiKey: process.env.DEFINDEX_API_KEY ?? "",
 
+  // Fireblocks MPC Vault config
+  fireblocks: {
+    apiKey: process.env.FIREBLOCKS_API_KEY ?? "",
+    secretKeyPath: process.env.FIREBLOCKS_SECRET_KEY_PATH ?? "./fireblocks_secret.key",
+    vaultAccountId: process.env.FIREBLOCKS_VAULT_ACCOUNT_ID ?? "0",
+    basePath: process.env.FIREBLOCKS_BASE_PATH ?? "https://sandbox-api.fireblocks.io/v1",
+  },
+
   // Privy server-wallet config
   privy: {
     appId: process.env.PRIVY_APP_ID ?? "",
